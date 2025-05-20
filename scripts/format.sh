@@ -1,0 +1,1 @@
+isort . && pyink . && ruff check --fix && ruff format
