@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
-
 from functools import lru_cache
 
 import loguru
-
 from loguru import logger
 
 from core.conf import settings
@@ -26,7 +24,9 @@ class InterceptHandler(logging.Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
 
 
 class Logger:
@@ -42,17 +42,18 @@ class Logger:
         log_stderr_file = os.path.join(self.log_path, settings.LOG_STDERR_FILENAME)
 
         log_config = {
-            'rotation': '10MB',
-            'retention': '15 days',
-            'compression': 'tar.gz',
-            'enqueue': True,
+            "rotation": "10MB",
+            "retention": "15 days",
+            "compression": "tar.gz",
+            "enqueue": True,
         }
 
         logger.add(
             log_stdout_file,
             **log_config,
-            level='INFO',
-            filter=lambda record: record['level'].name == 'INFO' or record['level'].no <= 25,
+            level="INFO",
+            filter=lambda record: record["level"].name == "INFO"
+            or record["level"].no <= 25,
             backtrace=False,
             diagnose=False,
         )
@@ -60,8 +61,9 @@ class Logger:
         logger.add(
             log_stderr_file,
             **log_config,
-            level='ERROR',
-            filter=lambda record: record['level'].name == 'ERROR' or record['level'].no >= 30,
+            level="ERROR",
+            filter=lambda record: record["level"].name == "ERROR"
+            or record["level"].no >= 30,
             backtrace=True,
             diagnose=True,
         )

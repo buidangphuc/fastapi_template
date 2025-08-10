@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import asyncio
-
 from typing import Any
 
 from celery import Task
@@ -24,7 +23,7 @@ class TaskBase(Task):
         :param task_id: Task ID
         :return:
         """
-        await task_notification(msg=f'Task {task_id} started')
+        await task_notification(msg=f"Task {task_id} started")
 
     async def on_success(self, retval: Any, task_id: str, args, kwargs) -> None:
         """
@@ -34,7 +33,7 @@ class TaskBase(Task):
         :param task_id: Task ID
         :return:
         """
-        await task_notification(msg=f'Task {task_id} executed successfully')
+        await task_notification(msg=f"Task {task_id} executed successfully")
 
     def on_failure(self, exc: Exception, task_id: str, args, kwargs, einfo) -> None:
         """
@@ -46,4 +45,4 @@ class TaskBase(Task):
         :return:
         """
         loop = asyncio.get_event_loop()
-        loop.create_task(task_notification(msg=f'Task {task_id} execution failed'))
+        loop.create_task(task_notification(msg=f"Task {task_id} execution failed"))

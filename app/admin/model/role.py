@@ -19,20 +19,28 @@ if TYPE_CHECKING:
 class Role(Base):
     """Role model."""
 
-    __tablename__ = 'sys_role'
+    __tablename__ = "sys_role"
 
     id: Mapped[id_key] = mapped_column(init=False)
-    name: Mapped[str] = mapped_column(String(20), unique=True, comment='role name')
-    status: Mapped[int] = mapped_column(default=1, comment='role status (0 disabled 1 normal)')
+    name: Mapped[str] = mapped_column(String(20), unique=True, comment="role name")
+    status: Mapped[int] = mapped_column(
+        default=1, comment="role status (0 disabled 1 normal)"
+    )
     remark: Mapped[str | None] = mapped_column(
-        LONGTEXT().with_variant(TEXT, 'postgresql'), default=None, comment='role remark'
+        LONGTEXT().with_variant(TEXT, "postgresql"), default=None, comment="role remark"
     )
 
     # One-to-many role users
-    users: Mapped[list[User]] = relationship(init=False, secondary=sys_user_role, back_populates='roles')
+    users: Mapped[list[User]] = relationship(
+        init=False, secondary=sys_user_role, back_populates="roles"
+    )
 
     # One-to-many role menus
-    menus: Mapped[list[Menu]] = relationship(init=False, secondary=sys_role_menu, back_populates='roles')
+    menus: Mapped[list[Menu]] = relationship(
+        init=False, secondary=sys_role_menu, back_populates="roles"
+    )
 
     # One-to-many role data rules
-    rules: Mapped[list[DataRule]] = relationship(init=False, secondary=sys_role_data_rule, back_populates='roles')
+    rules: Mapped[list[DataRule]] = relationship(
+        init=False, secondary=sys_role_data_rule, back_populates="roles"
+    )

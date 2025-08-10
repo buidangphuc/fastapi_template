@@ -31,11 +31,15 @@ class CRUDDataRule(CRUDPlus[DataRule]):
         :param name: Rule name
         :return:
         """
-        stmt = select(self.model).options(noload(self.model.roles)).order_by(desc(self.model.created_time))
+        stmt = (
+            select(self.model)
+            .options(noload(self.model.roles))
+            .order_by(desc(self.model.created_time))
+        )
 
         filters = []
         if name is not None:
-            filters.append(self.model.name.like(f'%{name}%'))
+            filters.append(self.model.name.like(f"%{name}%"))
 
         if filters:
             stmt = stmt.where(and_(*filters))

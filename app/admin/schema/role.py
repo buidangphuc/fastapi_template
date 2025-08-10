@@ -13,9 +13,9 @@ from common.schema import SchemaBase
 class RoleSchemaBase(SchemaBase):
     """Role Base Model"""
 
-    name: str = Field(description='Role Name')
-    status: StatusType = Field(StatusType.enable, description='Status')
-    remark: str | None = Field(None, description='Remark')
+    name: str = Field(description="Role Name")
+    status: StatusType = Field(StatusType.enable, description="Status")
+    remark: str | None = Field(None, description="Remark")
 
 
 class CreateRoleParam(RoleSchemaBase):
@@ -29,13 +29,13 @@ class UpdateRoleParam(RoleSchemaBase):
 class UpdateRoleMenuParam(SchemaBase):
     """Update Role Menu Parameters"""
 
-    menus: list[int] = Field(description='Menu ID List')
+    menus: list[int] = Field(description="Menu ID List")
 
 
 class UpdateRoleRuleParam(SchemaBase):
     """Update Role Rule Parameters"""
 
-    rules: list[int] = Field(description='Data Rule ID List')
+    rules: list[int] = Field(description="Data Rule ID List")
 
 
 class GetRoleDetail(RoleSchemaBase):
@@ -43,13 +43,15 @@ class GetRoleDetail(RoleSchemaBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int = Field(description='Role ID')
-    created_time: datetime = Field(description='Creation Time')
-    updated_time: datetime | None = Field(None, description='Update Time')
+    id: int = Field(description="Role ID")
+    created_time: datetime = Field(description="Creation Time")
+    updated_time: datetime | None = Field(None, description="Update Time")
 
 
 class GetRoleWithRelationDetail(GetRoleDetail):
     """Role with Relation Details"""
 
-    menus: list[GetMenuDetail | None] = Field([], description='Menu Detail List')
-    rules: list[GetDataRuleDetail | None] = Field([], description='Data Rule Detail List')
+    menus: list[GetMenuDetail | None] = Field([], description="Menu Detail List")
+    rules: list[GetDataRuleDetail | None] = Field(
+        [], description="Data Rule Detail List"
+    )

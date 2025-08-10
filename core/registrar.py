@@ -23,7 +23,6 @@ def register_router(app: FastAPI):
     app.include_router(router)
 
 
-
 def register_middleware(app: FastAPI):
     """
     Middleware, execution order from bottom to top.
@@ -36,20 +35,19 @@ def register_middleware(app: FastAPI):
 
     # CORS middleware
     if settings.MIDDLEWARE_CORS:
-        log.info('CORS enabled')
+        log.info("CORS enabled")
         from fastapi.middleware.cors import CORSMiddleware
 
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.CORS_ALLOWED_ORIGINS,
             allow_credentials=True,
-            allow_methods=['*'],
-            allow_headers=['*'],
+            allow_methods=["*"],
+            allow_headers=["*"],
         )
 
 
 def register_app(init_db: bool = True) -> FastAPI:
-    lifespan = None
     if init_db:
 
         @asynccontextmanager
@@ -61,16 +59,19 @@ def register_app(init_db: bool = True) -> FastAPI:
                 max_retries=settings.DATABASE_MAX_RETRIES,
             )
             await init_db()
-            
+
             # Initialize dev data if in development environment
-            if settings.ENVIRONMENT.lower() == 'dev':
+            if settings.ENVIRONMENT.lower() == "dev":
                 try:
-                    log.info("Development environment detected, initializing development data...")
+                    log.info(
+                        "Development environment detected, initializing development data..."
+                    )
                     from scripts.init_data import init_dev_data
+
                     await init_dev_data()
                 except Exception as e:
                     log.error(f"Failed to initialize development data: {str(e)}")
-            
+
             yield
 
     app = FastAPI(
@@ -90,28 +91,30 @@ def register_app(init_db: bool = True) -> FastAPI:
     register_router(app)
     register_exception(app)
 
-    @app.get('/health', tags=['health'])
+    @app.get("/health", tags=["health"])
     async def health(request: Request):
         # First check database connection
         from database.db import check_database_connection
 
-        db_status, error_msg = await check_database_connection(max_retries=1, retry_interval=0, for_health_check=True)
+        db_status, error_msg = await check_database_connection(
+            max_retries=1, retry_interval=0, for_health_check=True
+        )
 
         if not db_status:
             return await response_base.fail(
-                res=CustomResponse(code=503, message='Database connection failed'),
-                data={'error': error_msg},
+                res=CustomResponse(code=503, message="Database connection failed"),
+                data={"error": error_msg},
             )
 
         # If database is fine, check API status
         try:
             # Additional API health checks can be added here
             return await response_base.success(
-                data={'database': 'connected', 'api': 'healthy'},
+                data={"database": "connected", "api": "healthy"},
             )
         except Exception as e:
             return await response_base.fail(
-                data={'error': str(e)},
+                data={"error": str(e)},
             )
 
     return app

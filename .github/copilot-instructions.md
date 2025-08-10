@@ -118,4 +118,3 @@ backend/
 * Use `snake_case` throughout.
 * Group related files per feature/domain.
 * Use `__init__.py` to define packages.
-

@@ -26,7 +26,7 @@ class DeptService:
         async with AsyncSessionLocal() as db:
             dept = await dept_dao.get(db, pk)
             if not dept:
-                raise errors.NotFoundError(msg='Department does not exist')
+                raise errors.NotFoundError(msg="Department does not exist")
             return dept
 
     @staticmethod
@@ -43,7 +43,9 @@ class DeptService:
         :return:
         """
         async with AsyncSessionLocal() as db:
-            dept_select = await dept_dao.get_all(db=db, name=name, leader=leader, phone=phone, status=status)
+            dept_select = await dept_dao.get_all(
+                db=db, name=name, leader=leader, phone=phone, status=status
+            )
             tree_data = get_tree_data(dept_select)
             return tree_data
 
@@ -58,11 +60,11 @@ class DeptService:
         async with AsyncSessionLocal.begin() as db:
             dept = await dept_dao.get_by_name(db, obj.name)
             if dept:
-                raise errors.ForbiddenError(msg='Department name already exists')
+                raise errors.ForbiddenError(msg="Department name already exists")
             if obj.parent_id:
                 parent_dept = await dept_dao.get(db, obj.parent_id)
                 if not parent_dept:
-                    raise errors.NotFoundError(msg='Parent department does not exist')
+                    raise errors.NotFoundError(msg="Parent department does not exist")
             await dept_dao.create(db, obj)
 
     @staticmethod
@@ -77,16 +79,16 @@ class DeptService:
         async with AsyncSessionLocal.begin() as db:
             dept = await dept_dao.get(db, pk)
             if not dept:
-                raise errors.NotFoundError(msg='Department does not exist')
+                raise errors.NotFoundError(msg="Department does not exist")
             if dept.name != obj.name:
                 if await dept_dao.get_by_name(db, obj.name):
-                    raise errors.ForbiddenError(msg='Department name already exists')
+                    raise errors.ForbiddenError(msg="Department name already exists")
             if obj.parent_id:
                 parent_dept = await dept_dao.get(db, obj.parent_id)
                 if not parent_dept:
-                    raise errors.NotFoundError(msg='Parent department does not exist')
+                    raise errors.NotFoundError(msg="Parent department does not exist")
             if obj.parent_id == dept.id:
-                raise errors.ForbiddenError(msg='Cannot associate itself as a parent')
+                raise errors.ForbiddenError(msg="Cannot associate itself as a parent")
             count = await dept_dao.update(db, pk, obj)
             return count
 
@@ -101,13 +103,15 @@ class DeptService:
         async with AsyncSessionLocal.begin() as db:
             dept = await dept_dao.get_with_relation(db, pk)
             if dept.users:
-                raise errors.ForbiddenError(msg='Department has users, cannot delete')
+                raise errors.ForbiddenError(msg="Department has users, cannot delete")
             children = await dept_dao.get_children(db, pk)
             if children:
-                raise errors.ForbiddenError(msg='Department has sub-departments, cannot delete')
+                raise errors.ForbiddenError(
+                    msg="Department has sub-departments, cannot delete"
+                )
             count = await dept_dao.delete(db, pk)
             for user in dept.users:
-                await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                await redis_client.delete(f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}")
             return count
 
 

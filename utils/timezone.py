@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import zoneinfo
-
 from datetime import datetime
 from datetime import timezone as datetime_timezone
 
@@ -31,7 +30,9 @@ class TimeZone:
         """
         return dt.astimezone(self.tz_info)
 
-    def f_str(self, date_str: str, format_str: str = settings.DATETIME_FORMAT) -> datetime:
+    def f_str(
+        self, date_str: str, format_str: str = settings.DATETIME_FORMAT
+    ) -> datetime:
         """
         Convert time string to datetime object in current timezone
 

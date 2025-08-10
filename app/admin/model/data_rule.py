@@ -17,17 +17,19 @@ if TYPE_CHECKING:
 class DataRule(Base):
     """Data rule model."""
 
-    __tablename__ = 'sys_data_rule'
+    __tablename__ = "sys_data_rule"
 
     id: Mapped[id_key] = mapped_column(init=False)
-    name: Mapped[str] = mapped_column(String(255), unique=True, comment='rule name')
-    model: Mapped[str] = mapped_column(String(50), comment='SQLA model')
-    column: Mapped[str] = mapped_column(String(20), comment='rule column')
-    operator: Mapped[int] = mapped_column(comment='Operator (0: and, 1: or)')
+    name: Mapped[str] = mapped_column(String(255), unique=True, comment="rule name")
+    model: Mapped[str] = mapped_column(String(50), comment="SQLA model")
+    column: Mapped[str] = mapped_column(String(20), comment="rule column")
+    operator: Mapped[int] = mapped_column(comment="Operator (0: and, 1: or)")
     expression: Mapped[int] = mapped_column(
-        comment='Expression (0:==、1：!=、2：>、3：>=、4：<、5：<=、6：in、7：not_in）'
+        comment="Expression (0:==、1：!=、2：>、3：>=、4：<、5：<=、6：in、7：not_in）"
     )
-    value: Mapped[str] = mapped_column(String(255), comment='rule value')
+    value: Mapped[str] = mapped_column(String(255), comment="rule value")
 
     # Relationships
-    roles: Mapped[list[Role]] = relationship(init=False, secondary=sys_role_data_rule, back_populates='rules')
+    roles: Mapped[list[Role]] = relationship(
+        init=False, secondary=sys_role_data_rule, back_populates="rules"
+    )

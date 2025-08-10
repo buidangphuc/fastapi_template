@@ -13,10 +13,12 @@ from core.path_conf import BASE_PATH
 class TaskSettings(BaseSettings):
     """Celery task configuration"""
 
-    model_config = SettingsConfigDict(env_file=f'{BASE_PATH}/.env', env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(
+        env_file=f"{BASE_PATH}/.env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # .env environment
-    ENVIRONMENT: Literal['dev', 'pro']
+    ENVIRONMENT: Literal["dev", "pro"]
 
     # .env Redis configuration
     CELERY_BROKER_REDIS_DATABASE: int = 0
@@ -30,37 +32,37 @@ class TaskSettings(BaseSettings):
     RABBITMQ_PASSWORD: str
 
     # Celery basic configuration
-    CELERY_BROKER: Literal['rabbitmq', 'redis'] = 'redis'
-    CELERY_BACKEND_REDIS_PREFIX: str = 'fba:celery:'
+    CELERY_BROKER: Literal["rabbitmq", "redis"] = "redis"
+    CELERY_BACKEND_REDIS_PREFIX: str = "fba:celery:"
     CELERY_BACKEND_REDIS_TIMEOUT: int = 5
     CELERY_TASK_PACKAGES: list[str] = [
-        'app.task.celery_task',
-        'app.task.celery_task.db_log',
+        "app.task.celery_task",
+        "app.task.celery_task.db_log",
     ]
     CELERY_TASK_MAX_RETRIES: int = 5
 
     # Celery periodic task configuration
     CELERY_SCHEDULE: dict[str, dict[str, Any]] = {
-        'exec-every-10-seconds': {
-            'task': 'task_demo_async',
-            'schedule': 10,
+        "exec-every-10-seconds": {
+            "task": "task_demo_async",
+            "schedule": 10,
         },
-        'exec-every-sunday': {
-            'task': 'delete_db_opera_log',
-            'schedule': crontab('0', '0', day_of_week='6'),
+        "exec-every-sunday": {
+            "task": "delete_db_opera_log",
+            "schedule": crontab("0", "0", day_of_week="6"),
         },
-        'exec-every-15-of-month': {
-            'task': 'delete_db_login_log',
-            'schedule': crontab('0', '0', day_of_month='15'),
+        "exec-every-15-of-month": {
+            "task": "delete_db_login_log",
+            "schedule": crontab("0", "0", day_of_month="15"),
         },
     }
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def validate_celery_broker(cls, values: Any) -> Any:
         """Force the use of RabbitMQ as the message broker in production environment"""
-        if values['ENVIRONMENT'] == 'pro':
-            values['CELERY_BROKER'] = 'rabbitmq'
+        if values["ENVIRONMENT"] == "pro":
+            values["CELERY_BROKER"] = "rabbitmq"
         return values
 
 

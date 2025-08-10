@@ -1,5 +1,4 @@
 import dataclasses
-
 from enum import Enum
 
 
@@ -14,32 +13,32 @@ class CustomCodeBase(Enum):
 
 
 class CustomResponseCode(CustomCodeBase):
-    HTTP_200 = (200, 'OK')
-    HTTP_201 = (201, 'Created')
-    HTTP_202 = (202, 'Accepted')
-    HTTP_204 = (204, 'No Content')
-    HTTP_400 = (400, 'Bad Request')
-    HTTP_401 = (401, 'Unauthorized')
-    HTTP_403 = (403, 'Forbidden')
-    HTTP_404 = (404, 'Not Found')
-    HTTP_405 = (405, 'Method Not Allowed')
-    HTTP_406 = (406, 'Not Acceptable')
-    HTTP_408 = (408, 'Request Timeout')
-    HTTP_409 = (409, 'Conflict')
-    HTTP_410 = (410, 'Gone')
-    HTTP_411 = (411, 'Length Required')
-    HTTP_412 = (412, 'Precondition Failed')
-    HTTP_413 = (413, 'Request Entity Too Large')
-    HTTP_414 = (414, 'Request-URI Too Long')
-    HTTP_415 = (415, 'Unsupported Media Type')
-    HTTP_416 = (416, 'Requested Range Not Satisfiable')
-    HTTP_417 = (417, 'Expectation Failed')
-    HTTP_500 = (500, 'Internal Server Error')
-    HTTP_501 = (501, 'Not Implemented')
-    HTTP_502 = (502, 'Bad Gateway')
-    HTTP_503 = (503, 'Service Unavailable')
-    HTTP_504 = (504, 'Gateway Timeout')
-    HTTP_505 = (505, 'HTTP Version Not Supported')
+    HTTP_200 = (200, "OK")
+    HTTP_201 = (201, "Created")
+    HTTP_202 = (202, "Accepted")
+    HTTP_204 = (204, "No Content")
+    HTTP_400 = (400, "Bad Request")
+    HTTP_401 = (401, "Unauthorized")
+    HTTP_403 = (403, "Forbidden")
+    HTTP_404 = (404, "Not Found")
+    HTTP_405 = (405, "Method Not Allowed")
+    HTTP_406 = (406, "Not Acceptable")
+    HTTP_408 = (408, "Request Timeout")
+    HTTP_409 = (409, "Conflict")
+    HTTP_410 = (410, "Gone")
+    HTTP_411 = (411, "Length Required")
+    HTTP_412 = (412, "Precondition Failed")
+    HTTP_413 = (413, "Request Entity Too Large")
+    HTTP_414 = (414, "Request-URI Too Long")
+    HTTP_415 = (415, "Unsupported Media Type")
+    HTTP_416 = (416, "Requested Range Not Satisfiable")
+    HTTP_417 = (417, "Expectation Failed")
+    HTTP_500 = (500, "Internal Server Error")
+    HTTP_501 = (501, "Not Implemented")
+    HTTP_502 = (502, "Bad Gateway")
+    HTTP_503 = (503, "Service Unavailable")
+    HTTP_504 = (504, "Gateway Timeout")
+    HTTP_505 = (505, "HTTP Version Not Supported")
 
 
 class CustomErrorCode(CustomCodeBase):

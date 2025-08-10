@@ -34,7 +34,7 @@ class RoleService:
         async with AsyncSessionLocal() as db:
             role = await role_dao.get_with_relation(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             return role
 
     @staticmethod
@@ -78,7 +78,7 @@ class RoleService:
         async with AsyncSessionLocal.begin() as db:
             role = await role_dao.get_by_name(db, obj.name)
             if role:
-                raise errors.ForbiddenError(msg='Role already exists')
+                raise errors.ForbiddenError(msg="Role already exists")
             await role_dao.create(db, obj)
 
     @staticmethod
@@ -93,14 +93,16 @@ class RoleService:
         async with AsyncSessionLocal.begin() as db:
             role = await role_dao.get(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             if role.name != obj.name:
                 role = await role_dao.get_by_name(db, obj.name)
                 if role:
-                    raise errors.ForbiddenError(msg='Role already exists')
+                    raise errors.ForbiddenError(msg="Role already exists")
             count = await role_dao.update(db, pk, obj)
             for user in await role.awaitable_attrs.users:
-                await redis_client.delete_prefix(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                await redis_client.delete_prefix(
+                    f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                )
             return count
 
     @staticmethod
@@ -115,14 +117,16 @@ class RoleService:
         async with AsyncSessionLocal.begin() as db:
             role = await role_dao.get_with_relation(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             for menu_id in menu_ids.menus:
                 menu = await menu_dao.get(db, menu_id)
                 if not menu:
-                    raise errors.NotFoundError(msg='Menu does not exist')
+                    raise errors.NotFoundError(msg="Menu does not exist")
             count = await role_dao.update_menus(db, pk, menu_ids)
             for user in await role.awaitable_attrs.users:
-                await redis_client.delete_prefix(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                await redis_client.delete_prefix(
+                    f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                )
             return count
 
     @staticmethod
@@ -137,14 +141,14 @@ class RoleService:
         async with AsyncSessionLocal.begin() as db:
             role = await role_dao.get(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             for rule_id in rule_ids.rules:
                 rule = await data_rule_dao.get(db, rule_id)
                 if not rule:
-                    raise errors.NotFoundError(msg='Data rule does not exist')
+                    raise errors.NotFoundError(msg="Data rule does not exist")
             count = await role_dao.update_rules(db, pk, rule_ids)
             for user in await role.awaitable_attrs.users:
-                await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                await redis_client.delete(f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}")
             return count
 
     @staticmethod
@@ -161,7 +165,9 @@ class RoleService:
                 role = await role_dao.get(db, _pk)
                 if role:
                     for user in await role.awaitable_attrs.users:
-                        await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                        await redis_client.delete(
+                            f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                        )
             return count
 
 

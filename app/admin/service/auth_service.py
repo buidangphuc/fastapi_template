@@ -34,7 +34,9 @@ class AuthService:
     """Authentication Service Class"""
 
     @staticmethod
-    async def user_verify(db: AsyncSession, username: str, password: str | None) -> User:
+    async def user_verify(
+        db: AsyncSession, username: str, password: str | None
+    ) -> User:
         """
         Verify username and password
 
@@ -45,16 +47,18 @@ class AuthService:
         """
         user = await user_dao.get_by_username(db, username)
         if not user:
-            raise errors.NotFoundError(msg='Username or password is incorrect')
+            raise errors.NotFoundError(msg="Username or password is incorrect")
 
         if user.password is None:
-            raise errors.AuthorizationError(msg='Username or password is incorrect')
+            raise errors.AuthorizationError(msg="Username or password is incorrect")
         else:
             if not password_verify(password, user.password):
-                raise errors.AuthorizationError(msg='Username or password is incorrect')
+                raise errors.AuthorizationError(msg="Username or password is incorrect")
 
         if not user.status:
-            raise errors.AuthorizationError(msg='User has been locked, please contact system administrator')
+            raise errors.AuthorizationError(
+                msg="User has been locked, please contact system administrator"
+            )
 
         return user
 
@@ -77,7 +81,12 @@ class AuthService:
             return a_token.access_token, user
 
     async def login(
-        self, *, request: Request, response: Response, obj: AuthLoginParam, background_tasks: BackgroundTasks
+        self,
+        *,
+        request: Request,
+        response: Response,
+        obj: AuthLoginParam,
+        background_tasks: BackgroundTasks,
     ) -> GetLoginToken:
         """
         User login
@@ -92,12 +101,18 @@ class AuthService:
             user = None
             try:
                 user = await self.user_verify(db, obj.username, obj.password)
-                captcha_code = await redis_client.get(f'{admin_settings.CAPTCHA_LOGIN_REDIS_PREFIX}:{request.state.ip}')
+                captcha_code = await redis_client.get(
+                    f"{admin_settings.CAPTCHA_LOGIN_REDIS_PREFIX}:{request.state.ip}"
+                )
                 if not captcha_code:
-                    raise errors.AuthorizationError(msg='Verification code expired, please get a new one')
+                    raise errors.AuthorizationError(
+                        msg="Verification code expired, please get a new one"
+                    )
                 if captcha_code.lower() != obj.captcha.lower():
                     raise errors.CustomError(error=CustomErrorCode.CAPTCHA_ERROR)
-                await redis_client.delete(f'{admin_settings.CAPTCHA_LOGIN_REDIS_PREFIX}:{request.state.ip}')
+                await redis_client.delete(
+                    f"{admin_settings.CAPTCHA_LOGIN_REDIS_PREFIX}:{request.state.ip}"
+                )
                 await user_dao.update_login_time(db, obj.username)
                 await db.refresh(user)
                 a_token = await create_access_token(
@@ -121,11 +136,11 @@ class AuthService:
                     httponly=True,
                 )
             except errors.NotFoundError as e:
-                log.error('Login error: Username does not exist')
+                log.error("Login error: Username does not exist")
                 raise errors.NotFoundError(msg=e.msg)
             except (errors.AuthorizationError, errors.CustomError) as e:
                 if not user:
-                    log.error('Login error: Password is incorrect')
+                    log.error("Login error: Password is incorrect")
                 task = BackgroundTask(
                     login_log_service.create,
                     **dict(
@@ -140,7 +155,7 @@ class AuthService:
                 )
                 raise errors.AuthorizationError(msg=e.msg, background=task)
             except Exception as e:
-                log.error(f'Login error: {e}')
+                log.error(f"Login error: {e}")
                 raise e
             else:
                 background_tasks.add_task(
@@ -152,7 +167,7 @@ class AuthService:
                         username=obj.username,
                         login_time=timezone.now(),
                         status=LoginLogStatusType.success.value,
-                        msg='Login successful',
+                        msg="Login successful",
                     ),
                 )
                 data = GetLoginToken(
@@ -173,17 +188,21 @@ class AuthService:
         """
         refresh_token = request.cookies.get(settings.COOKIE_REFRESH_TOKEN_KEY)
         if not refresh_token:
-            raise errors.TokenError(msg='Refresh Token has expired, please log in again')
+            raise errors.TokenError(
+                msg="Refresh Token has expired, please log in again"
+            )
         try:
             user_id = jwt_decode(refresh_token).id
         except Exception:
-            raise errors.TokenError(msg='Invalid Refresh Token')
+            raise errors.TokenError(msg="Invalid Refresh Token")
         async with AsyncSessionLocal() as db:
             user = await user_dao.get(db, user_id)
             if not user:
-                raise errors.NotFoundError(msg='Username or password is incorrect')
+                raise errors.NotFoundError(msg="Username or password is incorrect")
             elif not user.status:
-                raise errors.AuthorizationError(msg='User has been locked, please contact system administrator')
+                raise errors.AuthorizationError(
+                    msg="User has been locked, please contact system administrator"
+                )
             new_token = await create_new_token(
                 user_id=str(user.id),
                 refresh_token=refresh_token,
@@ -219,13 +238,17 @@ class AuthService:
         refresh_token = request.cookies.get(settings.COOKIE_REFRESH_TOKEN_KEY)
         response.delete_cookie(settings.COOKIE_REFRESH_TOKEN_KEY)
         if request.user.is_multi_login:
-            await redis_client.delete(f'{settings.TOKEN_REDIS_PREFIX}:{user_id}:{token_payload.session_uuid}')
+            await redis_client.delete(
+                f"{settings.TOKEN_REDIS_PREFIX}:{user_id}:{token_payload.session_uuid}"
+            )
             if refresh_token:
-                await redis_client.delete(f'{settings.TOKEN_REFRESH_REDIS_PREFIX}:{user_id}:{refresh_token}')
+                await redis_client.delete(
+                    f"{settings.TOKEN_REFRESH_REDIS_PREFIX}:{user_id}:{refresh_token}"
+                )
         else:
             key_prefix = [
-                f'{settings.TOKEN_REDIS_PREFIX}:{user_id}:',
-                f'{settings.TOKEN_REFRESH_REDIS_PREFIX}:{user_id}:',
+                f"{settings.TOKEN_REDIS_PREFIX}:{user_id}:",
+                f"{settings.TOKEN_REFRESH_REDIS_PREFIX}:{user_id}:",
             ]
             for prefix in key_prefix:
                 await redis_client.delete_prefix(prefix)

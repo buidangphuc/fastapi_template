@@ -14,15 +14,19 @@ from utils.file_ops import file_verify, upload_file
 router = APIRouter()
 
 
-@router.post('/image', summary='Upload image', dependencies=[DependsJwtAuth])
-async def upload_image(file: Annotated[UploadFile, File()]) -> ResponseSchemaModel[UploadUrl]:
+@router.post("/image", summary="Upload image", dependencies=[DependsJwtAuth])
+async def upload_image(
+    file: Annotated[UploadFile, File()]
+) -> ResponseSchemaModel[UploadUrl]:
     file_verify(file, FileType.image)
     filename = await upload_file(file)
-    return response_base.success(data={'url': f'/static/upload/{filename}'})
+    return response_base.success(data={"url": f"/static/upload/{filename}"})
 
 
-@router.post('/video', summary='Upload video', dependencies=[DependsJwtAuth])
-async def upload_video(file: Annotated[UploadFile, File()]) -> ResponseSchemaModel[UploadUrl]:
+@router.post("/video", summary="Upload video", dependencies=[DependsJwtAuth])
+async def upload_video(
+    file: Annotated[UploadFile, File()]
+) -> ResponseSchemaModel[UploadUrl]:
     file_verify(file, FileType.video)
     filename = await upload_file(file)
-    return response_base.success(data={'url': f'/static/upload/{filename}'})
+    return response_base.success(data={"url": f"/static/upload/{filename}"})

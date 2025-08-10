@@ -11,7 +11,7 @@ RUN pip install --upgrade pip -i https://pypi.org/simple \
 # Stage 2: Runtime environment
 FROM python:3.12-slim AS runtime
 
-# Copying dependencies from build stage  
+# Copying dependencies from build stage
 COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=build /usr/local/bin /usr/local/bin
 

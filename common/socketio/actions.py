@@ -10,4 +10,4 @@ async def task_notification(msg: str):
     :param msg: Notification message
     :return:
     """
-    await sio.emit('task_notification', {'msg': msg})
+    await sio.emit("task_notification", {"msg": msg})

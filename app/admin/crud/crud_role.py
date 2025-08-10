@@ -47,13 +47,17 @@ class CRUDRole(CRUDPlus[Role]):
 
         stmt = (
             select(self.model)
-            .options(noload(self.model.users), noload(self.model.menus), noload(self.model.rules))
+            .options(
+                noload(self.model.users),
+                noload(self.model.menus),
+                noload(self.model.rules),
+            )
             .order_by(desc(self.model.created_time))
         )
 
         filters = []
         if name is not None:
-            filters.append(self.model.name.like(f'%{name}%'))
+            filters.append(self.model.name.like(f"%{name}%"))
         if status is not None:
             filters.append(self.model.status == status)
 
@@ -74,7 +78,9 @@ class CRUDRole(CRUDPlus[Role]):
 
         return await self.update_model(db, role_id, obj)
 
-    async def update_menus(self, db: AsyncSession, role_id: int, menu_ids: UpdateRoleMenuParam) -> int:
+    async def update_menus(
+        self, db: AsyncSession, role_id: int, menu_ids: UpdateRoleMenuParam
+    ) -> int:
 
         current_role = await self.get_with_relation(db, role_id)
         stmt = select(Menu).where(Menu.id.in_(menu_ids.menus))
@@ -82,7 +88,9 @@ class CRUDRole(CRUDPlus[Role]):
         current_role.menus = menus.scalars().all()
         return len(current_role.menus)
 
-    async def update_rules(self, db: AsyncSession, role_id: int, rule_ids: UpdateRoleRuleParam) -> int:
+    async def update_rules(
+        self, db: AsyncSession, role_id: int, rule_ids: UpdateRoleRuleParam
+    ) -> int:
 
         current_role = await self.get_with_relation(db, role_id)
         stmt = select(DataRule).where(DataRule.id.in_(rule_ids.rules))
@@ -92,7 +100,9 @@ class CRUDRole(CRUDPlus[Role]):
 
     async def delete(self, db: AsyncSession, role_id: list[int]) -> int:
 
-        return await self.delete_model_by_column(db, allow_multiple=True, id__in=role_id)
+        return await self.delete_model_by_column(
+            db, allow_multiple=True, id__in=role_id
+        )
 
 
 role_dao: CRUDRole = CRUDRole(Role)

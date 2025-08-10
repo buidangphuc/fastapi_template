@@ -21,19 +21,24 @@ class CRUDDept(CRUDPlus[Dept]):
         return await self.select_model_by_column(db, name=name, del_flag=0)
 
     async def get_all(
-        self, db: AsyncSession, name: str | None, leader: str | None, phone: str | None, status: int | None
+        self,
+        db: AsyncSession,
+        name: str | None,
+        leader: str | None,
+        phone: str | None,
+        status: int | None,
     ) -> Sequence[Dept]:
 
-        filters = {'del_flag__eq': 0}
+        filters = {"del_flag__eq": 0}
         if name is not None:
-            filters.update(name__like=f'%{name}%')
+            filters.update(name__like=f"%{name}%")
         if leader is not None:
-            filters.update(leader__like=f'%{leader}%')
+            filters.update(leader__like=f"%{leader}%")
         if phone is not None:
             filters.update(phone__startswith=phone)
         if status is not None:
             filters.update(status=status)
-        return await self.select_models_order(db, sort_columns='sort', **filters)
+        return await self.select_models_order(db, sort_columns="sort", **filters)
 
     async def create(self, db: AsyncSession, obj: CreateDeptParam) -> None:
 
@@ -45,17 +50,27 @@ class CRUDDept(CRUDPlus[Dept]):
 
     async def delete(self, db: AsyncSession, dept_id: int) -> int:
 
-        return await self.delete_model_by_column(db, id=dept_id, logical_deletion=True, deleted_flag_column='del_flag')
+        return await self.delete_model_by_column(
+            db, id=dept_id, logical_deletion=True, deleted_flag_column="del_flag"
+        )
 
     async def get_with_relation(self, db: AsyncSession, dept_id: int) -> Dept | None:
 
-        stmt = select(self.model).options(selectinload(self.model.users)).where(self.model.id == dept_id)
+        stmt = (
+            select(self.model)
+            .options(selectinload(self.model.users))
+            .where(self.model.id == dept_id)
+        )
         result = await db.execute(stmt)
         return result.scalars().first()
 
-    async def get_children(self, db: AsyncSession, dept_id: int) -> Sequence[Dept | None]:
+    async def get_children(
+        self, db: AsyncSession, dept_id: int
+    ) -> Sequence[Dept | None]:
 
-        stmt = select(self.model).where(self.model.parent_id == dept_id, self.model.del_flag == 0)
+        stmt = select(self.model).where(
+            self.model.parent_id == dept_id, self.model.del_flag == 0
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 

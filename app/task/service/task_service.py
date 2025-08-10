@@ -14,12 +14,13 @@ class TaskService:
     @staticmethod
     async def get_list() -> list[str]:
         """Get list of all registered Celery tasks"""
-        registered_tasks = await run_in_threadpool(celery_app.control.inspect().registered)
+        registered_tasks = await run_in_threadpool(
+            celery_app.control.inspect().registered
+        )
         if not registered_tasks:
-            raise errors.ForbiddenError(msg='Celery service is not started')
+            raise errors.ForbiddenError(msg="Celery service is not started")
         tasks = list(registered_tasks.values())[0]
         return tasks
-
 
     @staticmethod
     def revoke(*, tid: str) -> None:
@@ -32,7 +33,7 @@ class TaskService:
         try:
             result = AsyncResult(id=tid, app=celery_app)
         except NotRegistered:
-            raise NotFoundError(msg='Task does not exist')
+            raise NotFoundError(msg="Task does not exist")
         result.revoke(terminate=True)
 
     @staticmethod
@@ -43,7 +44,9 @@ class TaskService:
         :param obj: Task run parameters
         :return:
         """
-        task: AsyncResult = celery_app.send_task(name=obj.name, args=obj.args, kwargs=obj.kwargs)
+        task: AsyncResult = celery_app.send_task(
+            name=obj.name, args=obj.args, kwargs=obj.kwargs
+        )
         return task.task_id
 
 

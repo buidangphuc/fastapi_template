@@ -29,11 +29,13 @@ class MenuService:
         async with AsyncSessionLocal() as db:
             menu = await menu_dao.get(db, menu_id=pk)
             if not menu:
-                raise errors.NotFoundError(msg='Menu does not exist')
+                raise errors.NotFoundError(msg="Menu does not exist")
             return menu
 
     @staticmethod
-    async def get_menu_tree(*, title: str | None, status: int | None) -> list[dict[str, Any]]:
+    async def get_menu_tree(
+        *, title: str | None, status: int | None
+    ) -> list[dict[str, Any]]:
         """
         Get menu tree structure
 
@@ -57,7 +59,7 @@ class MenuService:
         async with AsyncSessionLocal() as db:
             role = await role_dao.get_with_relation(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             menu_ids = [menu.id for menu in role.menus]
             menu_select = await menu_dao.get_role_menus(db, False, menu_ids)
             menu_tree = get_tree_data(menu_select)
@@ -78,7 +80,9 @@ class MenuService:
             if roles:
                 for role in roles:
                     menu_ids.extend([menu.id for menu in role.menus])
-                menu_select = await menu_dao.get_role_menus(db, request.user.is_superuser, menu_ids)
+                menu_select = await menu_dao.get_role_menus(
+                    db, request.user.is_superuser, menu_ids
+                )
                 menu_tree = get_vben5_tree_data(menu_select)
             return menu_tree
 
@@ -93,11 +97,11 @@ class MenuService:
         async with AsyncSessionLocal.begin() as db:
             title = await menu_dao.get_by_title(db, obj.title)
             if title:
-                raise errors.ForbiddenError(msg='Menu title already exists')
+                raise errors.ForbiddenError(msg="Menu title already exists")
             if obj.parent_id:
                 parent_menu = await menu_dao.get(db, obj.parent_id)
                 if not parent_menu:
-                    raise errors.NotFoundError(msg='Parent menu does not exist')
+                    raise errors.NotFoundError(msg="Parent menu does not exist")
             await menu_dao.create(db, obj)
 
     @staticmethod
@@ -112,20 +116,22 @@ class MenuService:
         async with AsyncSessionLocal.begin() as db:
             menu = await menu_dao.get(db, pk)
             if not menu:
-                raise errors.NotFoundError(msg='Menu does not exist')
+                raise errors.NotFoundError(msg="Menu does not exist")
             if menu.title != obj.title:
                 if await menu_dao.get_by_title(db, obj.title):
-                    raise errors.ForbiddenError(msg='Menu title already exists')
+                    raise errors.ForbiddenError(msg="Menu title already exists")
             if obj.parent_id:
                 parent_menu = await menu_dao.get(db, obj.parent_id)
                 if not parent_menu:
-                    raise errors.NotFoundError(msg='Parent menu does not exist')
+                    raise errors.NotFoundError(msg="Parent menu does not exist")
             if obj.parent_id == menu.id:
-                raise errors.ForbiddenError(msg='Cannot associate itself as a parent')
+                raise errors.ForbiddenError(msg="Cannot associate itself as a parent")
             count = await menu_dao.update(db, pk, obj)
             for role in await menu.awaitable_attrs.roles:
                 for user in await role.awaitable_attrs.users:
-                    await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                    await redis_client.delete(
+                        f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                    )
             return count
 
     @staticmethod
@@ -139,13 +145,15 @@ class MenuService:
         async with AsyncSessionLocal.begin() as db:
             children = await menu_dao.get_children(db, pk)
             if children:
-                raise errors.ForbiddenError(msg='Menu has sub-menus, cannot delete')
+                raise errors.ForbiddenError(msg="Menu has sub-menus, cannot delete")
             menu = await menu_dao.get(db, pk)
             count = await menu_dao.delete(db, pk)
             if menu:
                 for role in await menu.awaitable_attrs.roles:
                     for user in await role.awaitable_attrs.users:
-                        await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                        await redis_client.delete(
+                            f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                        )
             return count
 
 

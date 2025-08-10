@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import importlib
-
 from functools import lru_cache
 from typing import Any, Type, TypeVar
 
 from common.exception import errors
 from common.log import log
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @lru_cache(maxsize=512)
@@ -30,9 +29,11 @@ def dynamic_import_data_model(module_path: str) -> Type[T]:
     :return:
     """
     try:
-        module_path, class_name = module_path.rsplit('.', 1)
+        module_path, class_name = module_path.rsplit(".", 1)
         module = import_module_cached(module_path)
         return getattr(module, class_name)
     except (ImportError, AttributeError) as e:
-        log.error(f'Failed to dynamically import data model: {e}')
-        raise errors.ServerError(msg='Failed to dynamically parse data model, please contact system administrator')
+        log.error(f"Failed to dynamically import data model: {e}")
+        raise errors.ServerError(
+            msg="Failed to dynamically parse data model, please contact system administrator"
+        )

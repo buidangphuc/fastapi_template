@@ -23,7 +23,9 @@ class BaseExceptionMixin(Exception):
 
 
 class HTTPError(HTTPException):
-    def __init__(self, *, code: int, msg: Any = None, headers: dict[str, Any] | None = None):
+    def __init__(
+        self, *, code: int, msg: Any = None, headers: dict[str, Any] | None = None
+    ):
         super().__init__(status_code=code, detail=msg, headers=headers)
 
 
@@ -45,7 +47,7 @@ class RequestError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Bad Request',
+        msg: str = "Bad Request",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -58,7 +60,7 @@ class ForbiddenError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Forbidden',
+        msg: str = "Forbidden",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -71,7 +73,7 @@ class NotFoundError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Not Found',
+        msg: str = "Not Found",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -84,7 +86,7 @@ class ServerError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Internal Server Error',
+        msg: str = "Internal Server Error",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -97,7 +99,7 @@ class GatewayError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Bad Gateway',
+        msg: str = "Bad Gateway",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -110,7 +112,7 @@ class AuthorizationError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Permission Denied',
+        msg: str = "Permission Denied",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
@@ -120,8 +122,12 @@ class AuthorizationError(BaseExceptionMixin):
 class TokenError(HTTPError):
     code = StandardResponseCode.HTTP_401
 
-    def __init__(self, *, msg: str = 'Not Authenticated', headers: dict[str, Any] | None = None):
-        super().__init__(code=self.code, msg=msg, headers=headers or {'WWW-Authenticate': 'Bearer'})
+    def __init__(
+        self, *, msg: str = "Not Authenticated", headers: dict[str, Any] | None = None
+    ):
+        super().__init__(
+            code=self.code, msg=msg, headers=headers or {"WWW-Authenticate": "Bearer"}
+        )
 
 
 class DebugError(BaseExceptionMixin):
@@ -130,7 +136,7 @@ class DebugError(BaseExceptionMixin):
     def __init__(
         self,
         *,
-        msg: str = 'Debug Error',
+        msg: str = "Debug Error",
         data: Any = None,
         background: BackgroundTask | None = None,
         debug_info: dict = None,
@@ -145,13 +151,13 @@ class ProcessingError(DebugError):
         *,
         step: str,
         error: Exception,
-        msg: str = 'Processing Error',
+        msg: str = "Processing Error",
         data: Any = None,
     ):
         debug_info = {
-            'step': step,
-            'error_type': type(error).__name__,
-            'error_details': str(error),
+            "step": step,
+            "error_type": type(error).__name__,
+            "error_details": str(error),
         }
         super().__init__(msg=msg, data=data, debug_info=debug_info)
 
@@ -164,18 +170,20 @@ class StorageError(ServerError):
         *,
         operation: str,
         entity: str | None = None,
-        msg: str = 'Storage operation failed',
+        msg: str = "Storage operation failed",
         data: Any = None,
         background: BackgroundTask | None = None,
     ):
-        error_msg = f'{msg} - Operation: {operation}'
+        error_msg = f"{msg} - Operation: {operation}"
         if entity:
-            error_msg += f', Entity: {entity}'
+            error_msg += f", Entity: {entity}"
         super().__init__(msg=error_msg, data=data, background=background)
 
 
 class EntityCreationError(StorageError):
     """Raised when entity creation fails."""
 
-    def __init__(self, *, entity: str, msg: str = 'Failed to create entity', data: Any = None):
-        super().__init__(operation='create', entity=entity, msg=msg, data=data)
+    def __init__(
+        self, *, entity: str, msg: str = "Failed to create entity", data: Any = None
+    ):
+        super().__init__(operation="create", entity=entity, msg=msg, data=data)

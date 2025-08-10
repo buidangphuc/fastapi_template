@@ -9,7 +9,9 @@ from utils.request_parse import parse_ip_info, parse_user_agent_info
 class StateMiddleware(BaseHTTPMiddleware):
     """Request state middleware for parsing and setting additional request information"""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """
         Process request and set request state information
 

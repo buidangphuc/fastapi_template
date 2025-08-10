@@ -5,7 +5,13 @@ from typing import Annotated
 
 from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, declared_attr, mapped_column
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    MappedAsDataclass,
+    declared_attr,
+    mapped_column,
+)
 
 from utils.timezone import timezone
 
@@ -13,7 +19,14 @@ from utils.timezone import timezone
 # MappedBase -> id: Mapped[id_key]
 # DataClassBase && Base -> id: Mapped[id_key] = mapped_column(init=False)
 id_key = Annotated[
-    int, mapped_column(primary_key=True, index=True, autoincrement=True, sort_order=-999, comment='Primary Key ID')
+    int,
+    mapped_column(
+        primary_key=True,
+        index=True,
+        autoincrement=True,
+        sort_order=-999,
+        comment="Primary Key ID",
+    ),
 ]
 
 
@@ -21,18 +34,28 @@ id_key = Annotated[
 class UserMixin(MappedAsDataclass):
     """User Mixin Data Class"""
 
-    created_by: Mapped[int] = mapped_column(sort_order=998, comment='Creator')
-    updated_by: Mapped[int | None] = mapped_column(init=False, default=None, sort_order=998, comment='Modifier')
+    created_by: Mapped[int] = mapped_column(sort_order=998, comment="Creator")
+    updated_by: Mapped[int | None] = mapped_column(
+        init=False, default=None, sort_order=998, comment="Modifier"
+    )
 
 
 class DateTimeMixin(MappedAsDataclass):
     """DateTime Mixin Data Class"""
 
     created_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), init=False, default_factory=timezone.now, sort_order=999, comment='Creation Time'
+        DateTime(timezone=True),
+        init=False,
+        default_factory=timezone.now,
+        sort_order=999,
+        comment="Creation Time",
     )
     updated_time: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), init=False, onupdate=timezone.now, sort_order=999, comment='Update Time'
+        DateTime(timezone=True),
+        init=False,
+        onupdate=timezone.now,
+        sort_order=999,
+        comment="Update Time",
     )
 
 
@@ -55,7 +78,7 @@ class MappedBase(AsyncAttrs, DeclarativeBase):
     @declared_attr.directive
     def __table_args__(cls) -> dict:
         """Table configuration"""
-        return {'comment': cls.__doc__ or ''}
+        return {"comment": cls.__doc__ or ""}
 
 
 class DataClassBase(MappedAsDataclass, MappedBase):

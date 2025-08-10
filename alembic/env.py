@@ -1,5 +1,4 @@
 import ssl
-
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -22,30 +21,29 @@ target_metadata = Base.metadata
 DATABASE_URL = settings.MYSQL_URL
 
 # Convert từ async URL -> sync URL cho Alembic
-if DATABASE_URL.startswith('mysql+asyncmy'):
-    DATABASE_URL = DATABASE_URL.replace('mysql+asyncmy', 'mysql+pymysql')
+if DATABASE_URL.startswith("mysql+asyncmy"):
+    DATABASE_URL = DATABASE_URL.replace("mysql+asyncmy", "mysql+pymysql")
 
-print(f'Using database URL: {DATABASE_URL}')
+print(f"Using database URL: {DATABASE_URL}")
 
 # Set URL vào config của Alembic
-config.set_main_option('sqlalchemy.url', DATABASE_URL)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # SSL config cho MySQL
 connect_args = {}
-if DATABASE_URL.startswith('mysql+pymysql'):
+if DATABASE_URL.startswith("mysql+pymysql"):
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    connect_args['ssl'] = ssl_context
+    connect_args["ssl"] = ssl_context
 
 
 def run_migrations_offline():
-    """Chạy migration trong chế độ offline (xuất SQL thay vì chạy trực tiếp)."""
     context.configure(
         url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={'paramstyle': 'named'},
+        dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
@@ -56,7 +54,7 @@ def run_migrations_online():
     """Chạy migration trực tiếp với DB."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
-        prefix='sqlalchemy.',
+        prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         connect_args=connect_args,
     )

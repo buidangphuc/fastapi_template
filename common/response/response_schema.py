@@ -4,13 +4,14 @@ from pydantic import BaseModel
 
 from common.response.response_code import CustomResponse, CustomResponseCode
 
-SchemaT = TypeVar('SchemaT')
+SchemaT = TypeVar("SchemaT")
 
 
 class ResponseModel(BaseModel):
     code: int = CustomResponseCode.HTTP_200.code
     message: str = CustomResponseCode.HTTP_200.message
     data: Any | None = None
+
 
 class ResponseSchemaModel(ResponseModel, Generic[SchemaT]):
     """
@@ -39,7 +40,9 @@ class ResponseSchemaModel(ResponseModel, Generic[SchemaT]):
 
 class ResponseBase:
     @staticmethod
-    async def __response(*, res: CustomResponseCode | CustomResponse = None, data: Any | None = None):
+    async def __response(
+        *, res: CustomResponseCode | CustomResponse = None, data: Any | None = None
+    ):
         return ResponseModel(code=res.code, message=res.message, data=data)
 
     async def success(

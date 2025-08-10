@@ -28,25 +28,26 @@ class StrEnum(_EnumBase, str, Enum):
 
 
 class TimeTypeEnum(StrEnum):
-    YEAR = 'year'
-    QUARTER = 'quarter'
-    MONTH = 'month'
-    SPRINT = 'sprint'
+    YEAR = "year"
+    QUARTER = "quarter"
+    MONTH = "month"
+    SPRINT = "sprint"
 
 
 class SourceEnum(StrEnum):
-    HOTJAR = 'Hotjar'
-    SURVEYMONKEY = 'Surveymonkey'
-    MANUAL = 'Manual'
-    CSAT = 'CSAT'
-    VOC = 'VOC'
+    HOTJAR = "Hotjar"
+    SURVEYMONKEY = "Surveymonkey"
+    MANUAL = "Manual"
+    CSAT = "CSAT"
+    VOC = "VOC"
 
 
 class TaskStatusEnum(StrEnum):
-    CREATED = 'created'
-    PROCESSING = 'processing'
-    FAILED = 'failed'
-    COMPLETED = 'completed'
+    CREATED = "created"
+    PROCESSING = "processing"
+    FAILED = "failed"
+    COMPLETED = "completed"
+
 
 class MenuType(IntEnum):
     """Menu type"""
@@ -54,6 +55,7 @@ class MenuType(IntEnum):
     directory = 0
     menu = 1
     button = 2
+
 
 class RoleDataRuleOperatorType(IntEnum):
     """Data rule operator type"""
@@ -78,12 +80,12 @@ class RoleDataRuleExpressionType(IntEnum):
 class MethodType(StrEnum):
     """HTTP request method"""
 
-    GET = 'GET'
-    POST = 'POST'
-    PUT = 'PUT'
-    DELETE = 'DELETE'
-    PATCH = 'PATCH'
-    OPTIONS = 'OPTIONS'
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+    PATCH = "PATCH"
+    OPTIONS = "OPTIONS"
 
 
 class LoginLogStatusType(IntEnum):
@@ -96,8 +98,8 @@ class LoginLogStatusType(IntEnum):
 class BuildTreeType(StrEnum):
     """Build tree structure type"""
 
-    traversal = 'traversal'
-    recursive = 'recursive'
+    traversal = "traversal"
+    recursive = "recursive"
 
 
 class OperaLogCipherType(IntEnum):
@@ -116,9 +118,8 @@ class StatusType(IntEnum):
     enable = 1
 
 
-
 class FileType(StrEnum):
     """File type"""
 
-    image = 'image'
-    video = 'video'
+    image = "image"
+    video = "video"

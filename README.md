@@ -89,5 +89,3 @@ Key environment variables include:
 - `DATABASE_URL`: Database connection string
 - `SECRET_KEY`: Secret key for token signing
 - `ENVIRONMENT`: Development/staging/production
-
-

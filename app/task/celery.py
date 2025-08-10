@@ -8,36 +8,36 @@ import celery_aio_pool
 from app.task.conf import task_settings
 from core.conf import settings
 
-__all__ = ['celery_app']
+__all__ = ["celery_app"]
 
 
 def get_broker_url() -> str:
     """Get broker URL"""
-    if task_settings.CELERY_BROKER == 'redis':
+    if task_settings.CELERY_BROKER == "redis":
         return (
-            f'redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:'
-            f'{settings.REDIS_PORT}/{task_settings.CELERY_BROKER_REDIS_DATABASE}'
+            f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:"
+            f"{settings.REDIS_PORT}/{task_settings.CELERY_BROKER_REDIS_DATABASE}"
         )
     return (
-        f'amqp://{task_settings.RABBITMQ_USERNAME}:{task_settings.RABBITMQ_PASSWORD}@'
-        f'{task_settings.RABBITMQ_HOST}:{task_settings.RABBITMQ_PORT}'
+        f"amqp://{task_settings.RABBITMQ_USERNAME}:{task_settings.RABBITMQ_PASSWORD}@"
+        f"{task_settings.RABBITMQ_HOST}:{task_settings.RABBITMQ_PORT}"
     )
 
 
 def get_result_backend() -> str:
     """Get result backend URL"""
     return (
-        f'redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:'
-        f'{settings.REDIS_PORT}/{task_settings.CELERY_BACKEND_REDIS_DATABASE}'
+        f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:"
+        f"{settings.REDIS_PORT}/{task_settings.CELERY_BACKEND_REDIS_DATABASE}"
     )
 
 
 def get_result_backend_transport_options() -> dict[str, Any]:
     """Get result backend transport options"""
     return {
-        'global_keyprefix': task_settings.CELERY_BACKEND_REDIS_PREFIX,
-        'retry_policy': {
-            'timeout': task_settings.CELERY_BACKEND_REDIS_TIMEOUT,
+        "global_keyprefix": task_settings.CELERY_BACKEND_REDIS_PREFIX,
+        "retry_policy": {
+            "timeout": task_settings.CELERY_BACKEND_REDIS_TIMEOUT,
         },
     }
 
@@ -49,7 +49,7 @@ def init_celery() -> celery.Celery:
     celery.app.trace.reset_worker_optimizations()
 
     app = celery.Celery(
-        'fba_celery',
+        "fba_celery",
         enable_utc=False,
         timezone=settings.DATETIME_TIMEZONE,
         beat_schedule=task_settings.CELERY_SCHEDULE,
@@ -57,7 +57,7 @@ def init_celery() -> celery.Celery:
         broker_connection_retry_on_startup=True,
         result_backend=get_result_backend(),
         result_backend_transport_options=get_result_backend_transport_options(),
-        task_cls='app.task.celery_task.base:TaskBase',
+        task_cls="app.task.celery_task.base:TaskBase",
         task_track_started=True,
     )
 

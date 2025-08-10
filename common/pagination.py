@@ -16,15 +16,15 @@ if TYPE_CHECKING:
     from sqlalchemy import Select
     from sqlalchemy.ext.asyncio import AsyncSession
 
-T = TypeVar('T')
-SchemaT = TypeVar('SchemaT')
+T = TypeVar("T")
+SchemaT = TypeVar("SchemaT")
 
 
 class _CustomPageParams(BaseModel, AbstractParams):
     """Custom pagination parameters"""
 
-    page: int = Query(1, ge=1, description='Page number')
-    size: int = Query(20, gt=0, le=200, description='Items per page')
+    page: int = Query(1, ge=1, description="Page number")
+    size: int = Query(20, gt=0, le=200, description="Items per page")
 
     def to_raw_params(self) -> RawParams:
         return RawParams(
@@ -36,22 +36,22 @@ class _CustomPageParams(BaseModel, AbstractParams):
 class _Links(BaseModel):
     """Pagination links"""
 
-    first: str = Field(description='First page link')
-    last: str = Field(description='Last page link')
-    self: str = Field(description='Current page link')
-    next: str | None = Field(None, description='Next page link')
-    prev: str | None = Field(None, description='Previous page link')
+    first: str = Field(description="First page link")
+    last: str = Field(description="Last page link")
+    self: str = Field(description="Current page link")
+    next: str | None = Field(None, description="Next page link")
+    prev: str | None = Field(None, description="Previous page link")
 
 
 class _PageDetails(BaseModel):
     """Pagination details"""
 
-    items: list = Field([], description='Current page data list')
-    total: int = Field(description='Total number of records')
-    page: int = Field(description='Current page number')
-    size: int = Field(description='Items per page')
-    total_pages: int = Field(description='Total pages')
-    links: _Links = Field(description='Pagination links')
+    items: list = Field([], description="Current page data list")
+    total: int = Field(description="Total number of records")
+    page: int = Field(description="Current page number")
+    size: int = Field(description="Items per page")
+    total_pages: int = Field(description="Total pages")
+    links: _Links = Field(description="Pagination links")
 
 
 class _CustomPage(_PageDetails, AbstractPage[T], Generic[T]):
@@ -70,10 +70,16 @@ class _CustomPage(_PageDetails, AbstractPage[T], Generic[T]):
         size = params.size
         total_pages = ceil(total / size)
         links = create_links(
-            first={'page': 1, 'size': size},
-            last={'page': total_pages, 'size': size} if total > 0 else {'page': 1, 'size': size},
-            next={'page': page + 1, 'size': size} if (page + 1) <= total_pages else None,
-            prev={'page': page - 1, 'size': size} if (page - 1) >= 1 else None,
+            first={"page": 1, "size": size},
+            last=(
+                {"page": total_pages, "size": size}
+                if total > 0
+                else {"page": 1, "size": size}
+            ),
+            next=(
+                {"page": page + 1, "size": size} if (page + 1) <= total_pages else None
+            ),
+            prev={"page": page - 1, "size": size} if (page - 1) >= 1 else None,
         ).model_dump()
 
         return cls(

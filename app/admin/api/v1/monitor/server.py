@@ -12,20 +12,20 @@ router = APIRouter()
 
 
 @router.get(
-    '',
-    summary='server monitoring',
+    "",
+    summary="server monitoring",
     dependencies=[
-        Depends(RequestPermission('sys:monitor:server')),
+        Depends(RequestPermission("sys:monitor:server")),
         DependsJwtAuth,
     ],
 )
 async def get_server_info() -> ResponseModel:
     data = {
         # Throw it into a thread pool to avoid blocking the event loop
-        'cpu': await run_in_threadpool(server_info.get_cpu_info),
-        'mem': await run_in_threadpool(server_info.get_mem_info),
-        'sys': await run_in_threadpool(server_info.get_sys_info),
-        'disk': await run_in_threadpool(server_info.get_disk_info),
-        'service': await run_in_threadpool(server_info.get_service_info),
+        "cpu": await run_in_threadpool(server_info.get_cpu_info),
+        "mem": await run_in_threadpool(server_info.get_mem_info),
+        "sys": await run_in_threadpool(server_info.get_sys_info),
+        "disk": await run_in_threadpool(server_info.get_disk_info),
+        "service": await run_in_threadpool(server_info.get_service_info),
     }
     return response_base.success(data=data)

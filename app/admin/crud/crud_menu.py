@@ -22,16 +22,20 @@ class CRUDMenu(CRUDPlus[Menu]):
 
         return await self.select_model_by_column(db, title=title, type__ne=2)
 
-    async def get_all(self, db: AsyncSession, title: str | None, status: int | None) -> Sequence[Menu]:
+    async def get_all(
+        self, db: AsyncSession, title: str | None, status: int | None
+    ) -> Sequence[Menu]:
 
         filters = {}
         if title is not None:
-            filters.update(title=f'%{title}%')
+            filters.update(title=f"%{title}%")
         if status is not None:
             filters.update(status=status)
-        return await self.select_models_order(db, 'sort', **filters)
+        return await self.select_models_order(db, "sort", **filters)
 
-    async def get_role_menus(self, db: AsyncSession, superuser: bool, menu_ids: list[int]) -> Sequence[Menu]:
+    async def get_role_menus(
+        self, db: AsyncSession, superuser: bool, menu_ids: list[int]
+    ) -> Sequence[Menu]:
 
         stmt = select(self.model).order_by(asc(self.model.sort))
         filters = [self.model.type.in_([0, 1])]
@@ -55,7 +59,11 @@ class CRUDMenu(CRUDPlus[Menu]):
 
     async def get_children(self, db: AsyncSession, menu_id: int) -> list[Menu | None]:
 
-        stmt = select(self.model).options(selectinload(self.model.children)).where(self.model.id == menu_id)
+        stmt = (
+            select(self.model)
+            .options(selectinload(self.model.children))
+            .where(self.model.id == menu_id)
+        )
         result = await db.execute(stmt)
         menu = result.scalars().first()
         return menu.children

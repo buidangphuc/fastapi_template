@@ -76,16 +76,20 @@ def filter_data_permission(request: Request) -> ColumnElement[bool]:
         # Verify rule model
         rule_model = rule.model
         if rule_model not in settings.DATA_PERMISSION_MODELS:
-            raise errors.NotFoundError(msg='Data rule model does not exist')
-        model_ins = dynamic_import_data_model(settings.DATA_PERMISSION_MODELS[rule_model])
+            raise errors.NotFoundError(msg="Data rule model does not exist")
+        model_ins = dynamic_import_data_model(
+            settings.DATA_PERMISSION_MODELS[rule_model]
+        )
 
         # Verify rule column
         model_columns = [
-            key for key in model_ins.__table__.columns.keys() if key not in settings.DATA_PERMISSION_COLUMN_EXCLUDE
+            key
+            for key in model_ins.__table__.columns.keys()
+            if key not in settings.DATA_PERMISSION_COLUMN_EXCLUDE
         ]
         column = rule.column
         if column not in model_columns:
-            raise errors.NotFoundError(msg='Data rule model column does not exist')
+            raise errors.NotFoundError(msg="Data rule model column does not exist")
 
         # Build filter conditions
         column_obj = getattr(model_ins, column)
@@ -104,10 +108,14 @@ def filter_data_permission(request: Request) -> ColumnElement[bool]:
         elif rule_expression == RoleDataRuleExpressionType.le:
             condition = column_obj <= rule.value
         elif rule_expression == RoleDataRuleExpressionType.in_:
-            values = rule.value.split(',') if isinstance(rule.value, str) else rule.value
+            values = (
+                rule.value.split(",") if isinstance(rule.value, str) else rule.value
+            )
             condition = column_obj.in_(values)
         elif rule.expression == RoleDataRuleExpressionType.not_in:
-            values = rule.value.split(',') if isinstance(rule.value, str) else rule.value
+            values = (
+                rule.value.split(",") if isinstance(rule.value, str) else rule.value
+            )
             condition = ~column_obj.in_(values)
 
         # Add to corresponding list based on operator

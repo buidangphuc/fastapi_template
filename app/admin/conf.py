@@ -10,8 +10,9 @@ from core.path_conf import BASE_PATH
 class AdminSettings(BaseSettings):
     """Admin Configuration"""
 
-    model_config = SettingsConfigDict(env_file=f'{BASE_PATH}/.env', env_file_encoding='utf-8', extra='ignore')
-
+    model_config = SettingsConfigDict(
+        env_file=f"{BASE_PATH}/.env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
 @lru_cache

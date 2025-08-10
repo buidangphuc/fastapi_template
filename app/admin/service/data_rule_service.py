@@ -29,7 +29,7 @@ class DataRuleService:
         async with AsyncSessionLocal() as db:
             data_rule = await data_rule_dao.get(db, pk)
             if not data_rule:
-                raise errors.NotFoundError(msg='Data rule does not exist')
+                raise errors.NotFoundError(msg="Data rule does not exist")
             return data_rule
 
     @staticmethod
@@ -43,7 +43,7 @@ class DataRuleService:
         async with AsyncSessionLocal() as db:
             role = await role_dao.get_with_relation(db, pk)
             if not role:
-                raise errors.NotFoundError(msg='Role does not exist')
+                raise errors.NotFoundError(msg="Role does not exist")
             rule_ids = [rule.id for rule in role.rules]
             return rule_ids
 
@@ -61,10 +61,12 @@ class DataRuleService:
         :return:
         """
         if model not in settings.DATA_PERMISSION_MODELS:
-            raise errors.NotFoundError(msg='Data rule available model does not exist')
+            raise errors.NotFoundError(msg="Data rule available model does not exist")
         model_ins = dynamic_import_data_model(settings.DATA_PERMISSION_MODELS[model])
         model_columns = [
-            key for key in model_ins.__table__.columns.keys() if key not in settings.DATA_PERMISSION_COLUMN_EXCLUDE
+            key
+            for key in model_ins.__table__.columns.keys()
+            if key not in settings.DATA_PERMISSION_COLUMN_EXCLUDE
         ]
         return model_columns
 
@@ -96,7 +98,7 @@ class DataRuleService:
         async with AsyncSessionLocal.begin() as db:
             data_rule = await data_rule_dao.get_by_name(db, obj.name)
             if data_rule:
-                raise errors.ForbiddenError(msg='Data rule already exists')
+                raise errors.ForbiddenError(msg="Data rule already exists")
             await data_rule_dao.create(db, obj)
 
     @staticmethod
@@ -111,11 +113,13 @@ class DataRuleService:
         async with AsyncSessionLocal.begin() as db:
             data_rule = await data_rule_dao.get(db, pk)
             if not data_rule:
-                raise errors.NotFoundError(msg='Data rule does not exist')
+                raise errors.NotFoundError(msg="Data rule does not exist")
             count = await data_rule_dao.update(db, pk, obj)
             for role in await data_rule.awaitable_attrs.roles:
                 for user in await role.awaitable_attrs.users:
-                    await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                    await redis_client.delete(
+                        f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                    )
             return count
 
     @staticmethod
@@ -133,7 +137,9 @@ class DataRuleService:
                 if data_rule:
                     for role in await data_rule.awaitable_attrs.roles:
                         for user in await role.awaitable_attrs.users:
-                            await redis_client.delete(f'{settings.JWT_USER_REDIS_PREFIX}:{user.id}')
+                            await redis_client.delete(
+                                f"{settings.JWT_USER_REDIS_PREFIX}:{user.id}"
+                            )
             return count
 
 

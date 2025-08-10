@@ -33,7 +33,9 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
         """
         # Exclude whitelist paths
         path = request.url.path
-        if path in settings.OPERA_LOG_PATH_EXCLUDE or not path.startswith(f'{settings.FASTAPI_API_V1_PATH}'):
+        if path in settings.OPERA_LOG_PATH_EXCLUDE or not path.startswith(
+            f"{settings.FASTAPI_API_V1_PATH}"
+        ):
             return await call_next(request)
 
         # Request parsing
@@ -53,8 +55,8 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
         cost_time = round((end_time - start_time).total_seconds() * 1000.0, 3)
 
         # This information can only be obtained after the request
-        _route = request.scope.get('route')
-        summary = getattr(_route, 'summary', None) or ''
+        _route = request.scope.get("route")
+        summary = getattr(_route, "summary", None) or ""
 
         # Log creation
         opera_log_in = CreateOperaLogParam(
@@ -86,7 +88,9 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
 
         return request_next.response
 
-    async def execute_request(self, request: Request, call_next: Any) -> RequestCallNext:
+    async def execute_request(
+        self, request: Request, call_next: Any
+    ) -> RequestCallNext:
         """
         Execute request and handle exceptions
 
@@ -95,7 +99,7 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
         :return:
         """
         code = 200
-        msg = 'Success'
+        msg = "Success"
         status = StatusType.enable
         err = None
         response = None
@@ -103,17 +107,21 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             code, msg = self.request_exception_handler(request, code, msg)
         except Exception as e:
-            log.error(f'Request exception: {str(e)}')
+            log.error(f"Request exception: {str(e)}")
             # Code handling includes SQLAlchemy and Pydantic
-            code = getattr(e, 'code', code)
-            msg = getattr(e, 'msg', msg)
+            code = getattr(e, "code", code)
+            msg = getattr(e, "msg", msg)
             status = StatusType.disable
             err = e
 
-        return RequestCallNext(code=str(code), msg=msg, status=status, err=err, response=response)
+        return RequestCallNext(
+            code=str(code), msg=msg, status=status, err=err, response=response
+        )
 
     @staticmethod
-    def request_exception_handler(request: Request, code: int, msg: str) -> tuple[str, str]:
+    def request_exception_handler(
+        request: Request, code: int, msg: str
+    ) -> tuple[str, str]:
         """
         Request exception handler
 
@@ -123,19 +131,19 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
         :return:
         """
         exception_states = [
-            '__request_http_exception__',
-            '__request_validation_exception__',
-            '__request_assertion_error__',
-            '__request_custom_exception__',
-            '__request_all_unknown_exception__',
-            '__request_cors_500_exception__',
+            "__request_http_exception__",
+            "__request_validation_exception__",
+            "__request_assertion_error__",
+            "__request_custom_exception__",
+            "__request_all_unknown_exception__",
+            "__request_cors_500_exception__",
         ]
         for state in exception_states:
             exception = getattr(request.state, state, None)
             if exception:
-                code = exception.get('code')
-                msg = exception.get('msg')
-                log.error(f'Request exception: {msg}')
+                code = exception.get("code")
+                msg = exception.get("msg")
+                log.error(f"Request exception: {msg}")
                 break
         return code, msg
 
@@ -154,18 +162,23 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
         body_data = await request.body()
         form_data = await request.form()
         if len(form_data) > 0:
-            args.update({k: v.filename if isinstance(v, UploadFile) else v for k, v in form_data.items()})
+            args.update(
+                {
+                    k: v.filename if isinstance(v, UploadFile) else v
+                    for k, v in form_data.items()
+                }
+            )
         elif body_data:
-            content_type = request.headers.get('Content-Type', '').split(';')
-            if 'application/json' in content_type:
+            content_type = request.headers.get("Content-Type", "").split(";")
+            if "application/json" in content_type:
                 json_data = await request.json()
                 if isinstance(json_data, dict):
                     args.update(json_data)
                 else:
                     # Note: Non-dictionary data uses 'body' as the default key
-                    args.update({'body': str(body_data)})
+                    args.update({"body": str(body_data)})
             else:
-                args.update({'body': str(body_data)})
+                args.update({"body": str(body_data)})
         return args
 
     @staticmethod
@@ -196,5 +209,5 @@ class OperaLogMiddleware(BaseHTTPMiddleware):
                     case OperaLogCipherType.plan:
                         pass
                     case _:
-                        args[key] = '******'
+                        args[key] = "******"
         return args

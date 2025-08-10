@@ -16,7 +16,9 @@ class LoginLogService:
     """Login Log Service Class"""
 
     @staticmethod
-    async def get_select(*, username: str | None, status: int | None, ip: str | None) -> Select:
+    async def get_select(
+        *, username: str | None, status: int | None, ip: str | None
+    ) -> Select:
         """
         Get login log list query conditions
 
@@ -68,7 +70,7 @@ class LoginLogService:
             )
             await login_log_dao.create(db, obj)
         except Exception as e:
-            log.error(f'Failed to create login log: {e}')
+            log.error(f"Failed to create login log: {e}")
 
     @staticmethod
     async def delete(*, pk: list[int]) -> int:

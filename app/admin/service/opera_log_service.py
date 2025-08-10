@@ -11,7 +11,9 @@ class OperaLogService:
     """Operation Log Service Class"""
 
     @staticmethod
-    async def get_select(*, username: str | None, status: int | None, ip: str | None) -> Select:
+    async def get_select(
+        *, username: str | None, status: int | None, ip: str | None
+    ) -> Select:
         """
         Get operation log list query conditions
 
