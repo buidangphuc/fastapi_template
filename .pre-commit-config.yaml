@@ -1,0 +1,117 @@
+minimum_pre_commit_version: "3.6.0"
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+ci:
+  autofix_prs: true
+  autoupdate_schedule: monthly
+
+repos:
+  # Hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: debug-statements
+      - id: requirements-txt-fixer
+
+  # Formatter
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        args: ["--line-length=88"]
+
+  # Import sorter
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
+        args: ["--profile", "black"]
+
+  # Linter
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args: ["--config=.flake8"]
+        exclude: |
+          (?x)^(
+            notebooks/.*|
+            project/research/.*|
+            aime_mme_model/.*|
+            \\.venv/.*|
+            \\.env/.*|
+            docs/.*|
+            data/.*|
+            mlruns/.*|
+            minio/.*|
+            \\.git/.*
+          )$
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        args: ["--config-file", "mypy.ini"]
+        exclude: ^(project/research/|notebooks/|mlruns/|data/|docs/)
+
+  # Security: SAST
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-q", "-r", "backend", "project/src", "scripts"]
+        exclude: ^tests/
+
+  # Secrets detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: ^(project/artifacts/|project/data/|data/|mlruns/|minio/)
+
+  # Notebooks: format/lint + strip
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.8.5
+    hooks:
+      - id: nbqa-black
+        additional_dependencies: [black==24.4.2]
+        args: ["--line-length=88"]
+        files: ^(project/research|notebooks)/.*\\.ipynb$
+      - id: nbqa-flake8
+        additional_dependencies: [flake8==7.1.1, flake8-bugbear, flake8-import-order]
+        files: ^(project/research|notebooks)/.*\\.ipynb$
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        files: ^(project/research|notebooks)/.*\\.ipynb$
+
+  # Shell & Markdown
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        files: ^(scripts/|.*\\.sh)$
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: ["-L", "nd", "-w"]
+        exclude: ^(project/artifacts/|project/data/|data/|mlruns/|minio/)
+
+  # Commit message (Conventional Commits)
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.28.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
