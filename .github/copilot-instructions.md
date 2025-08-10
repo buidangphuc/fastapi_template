@@ -1,9 +1,3 @@
----
-
-### Enhanced Python + FastAPI Scalable API Development Instructions
-
----
-
 ### Key Principles
 
 * Write concise, technical Python examples.
