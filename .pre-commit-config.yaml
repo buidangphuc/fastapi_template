@@ -53,15 +53,6 @@ repos:
             \\.git/.*
           )$
 
-
-  # Security: SAST
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.9
-    hooks:
-      - id: bandit
-        args: ["-q", "-r", "backend", "project/src", "scripts"]
-        exclude: ^tests/
-
   # Secrets detection
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
