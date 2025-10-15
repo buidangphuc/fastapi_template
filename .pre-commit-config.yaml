@@ -86,13 +86,6 @@ repos:
       - id: shellcheck
         files: ^(scripts/|.*\\.sh)$
 
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
-    hooks:
-      - id: codespell
-        args: ["-L", "nd", "-w"]
-        exclude: ^(project/artifacts/|project/data/|data/|mlruns/|minio/)
-
   # Commit message (Conventional Commits)
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v3.28.0
