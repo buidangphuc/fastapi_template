@@ -7,6 +7,7 @@ from common.exception.exception_handler import register_exception
 from common.log import log
 from common.response.response_schema import CustomResponse, response_base
 from core.conf import settings
+from middleware.request_id_middleware import RequestIdMiddleware
 from utils.serializers import MsgSpecJSONResponse
 from utils.string import generate_unique_id
 
@@ -44,7 +45,10 @@ def register_middleware(app: FastAPI):
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=settings.CORS_EXPOSE_HEADERS,
         )
+
+    app.add_middleware(RequestIdMiddleware)
 
 
 def register_app(init_db: bool = True) -> FastAPI:

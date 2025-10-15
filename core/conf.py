@@ -120,6 +120,18 @@ class Settings(BaseSettings):
     LOG_STDOUT_FILENAME: str = "pfa_access.log"
     LOG_STDERR_FILENAME: str = "pfa_error.log"
 
+    # Additional logging settings used by common/log.py
+    # If True, log messages will be formatted as JSON
+    LOG_JSON: bool = False
+    # Whether to enable console logging (stdout/stderr)
+    LOG_ENABLE_CONSOLE: bool = True
+    # Disable file-based logging when True
+    LOG_FILE_DISABLE: bool = False
+    # Log level used specifically for SQLAlchemy noisy loggers
+    SQLALCHEMY_LOG_LEVEL: str = "WARNING"
+    # List of noisy third-party loggers to quiet down (can be comma separated in env)
+    NOISY_LOGGERS: list[str] = ["sqlalchemy.engine"]
+
     # Middleware
     MIDDLEWARE_CORS: bool = True
     MIDDLEWARE_ACCESS: bool = False
