@@ -348,3 +348,20 @@ test assertion — one address variation legitimately omits the word "cũ".
 - **Phase 4** — hardening: structured-output fast-follow for other paths, durable
   outbox listing writes, Langfuse enablement, legacy error-envelope parity,
   parked correctness fixes (atomic `$inc`, persist day_limit).
+
+---
+
+## Refactor — shared prompt builders (DRY)
+
+- **Date:** 2026-06-02
+- Extracted duplicated prompt-section building (role/tone/rules/title/
+  description-templates/nearby/project/ending + price/area formatting) from both
+  generators into `app/modules/business/listing/prompt_builders.py`. Each
+  generator now composes the shared builders and keeps only its specifics
+  (description: ignored-params rule; pair_address: `{ADDRESS_PLACEHOLDER}` +
+  title retry/fallback + post-process). ~250 duplicated lines removed; single
+  place to evolve prompt content (e.g. restore full legacy wording for parity).
+- Module named `prompt_builders.py` (not `prompts.py`) to avoid colliding with
+  the existing `prompts/` asset directory (project.txt) — Python would resolve
+  the package over the module.
+- **Verify:** behavior-preserving; ruff clean; full suite **397 passed**.
