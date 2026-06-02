@@ -32,11 +32,16 @@ OpenAI model `gpt-4o-mini-2024-07-18`, Mongo `cmp_new`) via `scripts/compare_leg
   (intentional — new app stamps `PROMPT_VERSION`; legacy lacks the field).
 
 ### A. Pre-existing repo issues (NOT introduced by the migration)
-- [ ] **`.env.example` drift** (`make check-env` red): missing `RATE_LIMIT_IP_ENABLED`, `RATE_LIMIT_IP_PER_MINUTE`, `RATE_LIMIT_PRINCIPAL_ENABLED`, `RATE_LIMIT_PRINCIPAL_PER_MINUTE`, `RATE_LIMIT_EXCLUDE_PATHS`, `RAG_RETRIEVE_TIMEOUT_SECONDS`, `TASKS_DISPATCH_BACKEND`, `TASKS_LEASE_SECONDS`; stale key `DEFAULT_RATE_LIMIT_PER_MINUTE`. (Our `MONGO_*`/`MAX_*` are in sync.)
-- [ ] **`pyrightconfig.json` stale excludes**: point at pre-refactor `app/modules/queue/...` & `app/modules/objects/...` paths that no longer exist → optional adapters (sqs/rabbitmq/s3) aren't actually excluded → ~57 pyright baseline errors. Fix the paths to `app/modules/messaging/queue/...` and `app/modules/platform/objects/...`.
-- [ ] **`tests.factories`** unresolved import reported by pyright (baseline).
-- [ ] **`README.md` stale layout**: mentions `app/modules/llm`, `app/modules/identity`; actual is `app/modules/ai/llm`, `app/modules/platform/identity`.
-- [ ] **Local `.env` has keys not in `Settings`** (langfuse docker keys, `api_key_pepper`, …) → `get_settings()` against it fails under `extra="forbid"`. Env-hygiene only; tests build settings independently.
+> **Cleanup pass 2026-06-02 (no logic impact):** fixed the repo-drift items below
+> in a dedicated chore (separate from DGL feature commits). Pyright baseline went
+> **~57 → 6 errors** (the 6 remaining are DGL-code `Optional` member-access nits —
+> see item below — NOT pre-existing drift).
+- [x] **`.env.example` drift** — RESOLVED earlier (commit `98a21db`, `make check-env` green). The 18 "missing" keys are USED by live modules; only `DEFAULT_RATE_LIMIT_PER_MINUTE` was genuinely stale and was dropped.
+- [x] **`pyrightconfig.json` stale excludes** — FIXED: excludes now point at the real `app/modules/messaging/queue/adapters/{sqs,rabbitmq}.py` + `app/modules/platform/objects/adapters/s3.py`. The ~51 optional-adapter errors are gone (57 → 6).
+- [x] **`tests.factories`** — no longer flagged by pyright after the exclude fix (0 mentions).
+- [x] **`README.md` stale layout** — FIXED: module tree now reflects the real `ai/ business/ messaging/ platform/` grouping; `app.modules.llm.runtime` → `app.modules.ai.llm.runtime`.
+- [ ] **Local `.env` has keys not in `Settings`** (langfuse docker keys, `api_key_pepper`, …) → only bites a dotenv-file read under `extra="forbid"`; in Docker the keys arrive as OS env vars (ignored) so the container boots fine. Env-hygiene only; left as-is.
+- [ ] **6 pyright errors in DGL code** (`reportOptionalMemberAccess`, newly visible): `handlers/pair_address.py` (`content_out: Content | None` from `with_structured_output` — parse can yield None) ×4; `services/nearby.py` (`Result.name: str | None` → `.lower()`) ×2. Type-narrowing fix touches frozen handler/service + implies a None-handling decision → deferred (not "no logic impact").
 
 ### B. Decisions deferred / need confirmation
 - [ ] **FastAPI pin**: target `<0.116` vs legacy `0.135.1`. Bump before Phase 2 (porting generator code written against 0.135)? (recommended)

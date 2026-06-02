@@ -88,12 +88,24 @@ app/
   bootstrap/            App factory and service wiring
   core/                 Settings, database, Redis, errors, logging, health
   modules/
-    identity/           Static Bearer principal and auth dependency
-    audit/              Product audit events for actor/resource/action history
-    idempotency/        Concrete idempotency-key persistence helpers
-    llm/                LangChain chat model factory and per-instance Langfuse tracker
-    rag/                LlamaIndex-backed knowledge retrieval and tool builders
-    rate_limit/         Rate limit service contracts and implementations
+    ai/
+      llm/              LangChain chat model factory and per-instance Langfuse tracker
+      rag/              LlamaIndex-backed knowledge retrieval and tool builders
+      evals/            Evaluation harness scaffolding
+    business/           Domain logic (completions transport, listing generator)
+    messaging/
+      outbox/           Transactional outbox
+      queue/            Queue service contracts + adapters (memory/redis/sqs/rabbitmq)
+      tasks/            Durable async task dispatch
+      webhooks/         Outbound webhook delivery
+    platform/
+      identity/         Static Bearer principal and auth dependency
+      audit/            Product audit events for actor/resource/action history
+      idempotency/      Concrete idempotency-key persistence helpers
+      rate_limit/       Rate limit service contracts and implementations
+      cache/            Cache service contracts and implementations
+      objects/          Object storage contracts + adapters (memory/s3)
+      mongo/            MongoDB gateway + lifespan addon
 alembic/                Migration environment
 scripts/                Local helper scripts (including Langfuse smoke runners)
 tests/                  Unit and integration tests
@@ -186,7 +198,7 @@ session dependency.
 
 Langfuse is only wired at the AI execution boundary. Use
 `build_llm_instance(..., instance_id="...", service_name="...")` from
-`app.modules.llm.runtime` to create a native LangChain `BaseChatModel` plus a
+`app.modules.ai.llm.runtime` to create a native LangChain `BaseChatModel` plus a
 per-instance Langfuse tracker. Pass `instance.trace_config(...)` into LangChain
 calls to keep parallel LLM services separated by instance, service, session,
 user, and request metadata.
