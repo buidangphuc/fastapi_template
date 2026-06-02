@@ -1,5 +1,8 @@
-"""Legacy `POST /pair_address` (ported from
+"""Legacy `POST /description/pair_address` (ported from
 bds-genai-dgl core/generator/api/v1/pair_address.py).
+
+Mounted under the `/description` prefix in ``app/api/legacy/router.py`` so the
+full path matches legacy byte-for-byte (`/api/v1/description/pair_address`).
 
 Same flow as `/description` but with the pair-address generator and
 `PairAddressParams`/`PairAddressDescriptionResponse`. Reuses the quota

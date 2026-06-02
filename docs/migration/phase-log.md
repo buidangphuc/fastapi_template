@@ -14,6 +14,23 @@ Legacy source: `bds-genai-dgl` · Target: this repo · Branch: `dev_migrate_dgl`
 Durable notes accumulated while migrating — come back here when needed. Items
 are not necessarily in scope now; they're recorded so nothing is lost.
 
+### 0. Live A/B parity check (2026-06-02) — legacy :8000 vs new :8002
+Ran both services live (legacy on :8000, migrated app on :8002 with a **real**
+OpenAI model `gpt-4o-mini-2024-07-18`, Mongo `cmp_new`) via `scripts/compare_legacy.py`.
+- [x] **PATH PARITY BUG found + fixed**: legacy mounts pair-address at
+  `POST /api/v1/description/pair_address` (nested under `/description`), but the
+  migration exposed it at top-level `POST /api/v1/pair_address` → legacy path 404'd
+  on the new app. **Fix**: include `pair_address.router` with `prefix="/description"`
+  in `app/api/legacy/router.py`; updated the integration test + harness to the
+  legacy path. Now byte-compatible (decision D1). Verified live: both endpoints 200
+  on the same paths; 3 integration tests pass.
+- [x] All deterministic endpoints (usage_limit/reset/reset_all/day_limit/listing
+  submit+get) — normalized-exact match. Generators (`/description`,
+  `/description/pair_address`) — structural match (same envelope/data key shape;
+  values differ only by LLM non-determinism).
+- [ ] Only residual diff: additive `data.[].prompt_version` on `GET /listing`
+  (intentional — new app stamps `PROMPT_VERSION`; legacy lacks the field).
+
 ### A. Pre-existing repo issues (NOT introduced by the migration)
 - [ ] **`.env.example` drift** (`make check-env` red): missing `RATE_LIMIT_IP_ENABLED`, `RATE_LIMIT_IP_PER_MINUTE`, `RATE_LIMIT_PRINCIPAL_ENABLED`, `RATE_LIMIT_PRINCIPAL_PER_MINUTE`, `RATE_LIMIT_EXCLUDE_PATHS`, `RAG_RETRIEVE_TIMEOUT_SECONDS`, `TASKS_DISPATCH_BACKEND`, `TASKS_LEASE_SECONDS`; stale key `DEFAULT_RATE_LIMIT_PER_MINUTE`. (Our `MONGO_*`/`MAX_*` are in sync.)
 - [ ] **`pyrightconfig.json` stale excludes**: point at pre-refactor `app/modules/queue/...` & `app/modules/objects/...` paths that no longer exist → optional adapters (sqs/rabbitmq/s3) aren't actually excluded → ~57 pyright baseline errors. Fix the paths to `app/modules/messaging/queue/...` and `app/modules/platform/objects/...`.

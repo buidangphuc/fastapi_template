@@ -131,7 +131,46 @@ class Params(SchemaBase):
         return self
 
 
+# Curated OpenAPI/Swagger example (ported from legacy `DEFAULT_EXAMPLE`) so the
+# docs "Try it out" body is valid input (legacy commented this out for
+# /description but shipped it for pair_address; we enable both — docs only).
+DESCRIPTION_EXAMPLE = {
+    "goal": "bán",
+    "property_type": "nhà đất",
+    "area": 120.0,
+    "area_unit": "m2",
+    "price": 2_500_000_000.0,
+    "price_unit": "VND",
+    "legality": "sổ đỏ",
+    "project": "Khu dân cư ABC",
+    "city": "TP.HCM",
+    "district": "Quận 1",
+    "ward": "Phường Bến Nghé",
+    "street": "Đường Lê Lợi",
+    "display_address": "123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM",
+    "contact_name": "Nguyễn Văn A",
+    "contact_phone": "0901234567",
+    "contact_email": "nguyen.a@example.com",
+    "interior": "đầy đủ",
+    "rooms": 3,
+    "toilets": 2,
+    "floors": 2,
+    "direction": "đông",
+    "balcon_direction": "nam",
+    "width": 5.5,
+    "road_width": 8.0,
+    "lat": 10.7769,
+    "lng": 106.7009,
+    "platform": "web",
+}
+
+
 class AllParams(Params):
+    model_config = ConfigDict(
+        use_enum_values=True,
+        json_schema_extra={"examples": [DESCRIPTION_EXAMPLE]},
+    )
+
     interior: str | None = Field(description="Interior", default=None)
     rooms: int | None = Field(description="Number of rooms", default=None)
     toilets: int | None = Field(description="Number of toilets", default=None)
@@ -202,7 +241,23 @@ class AllParams(Params):
         return value
 
 
+# Ported verbatim from legacy `pair_address.DEFAULT_EXAMPLE` (was active in
+# legacy's OpenAPI; restored here).
+PAIR_ADDRESS_EXAMPLE = {
+    **DESCRIPTION_EXAMPLE,
+    "new_city": "TP.HCM",
+    "new_ward": "Phường Bến Nghé",
+    "new_street": "Đường Nguyễn Huệ",
+    "new_display_address": "123 Đường Nguyễn Huệ, Phường Bến Nghé, TP.HCM",
+}
+
+
 class PairAddressParams(AllParams):
+    model_config = ConfigDict(
+        use_enum_values=True,
+        json_schema_extra={"examples": [PAIR_ADDRESS_EXAMPLE]},
+    )
+
     new_city: str = Field(
         description="City where the property is located (new address)"
     )

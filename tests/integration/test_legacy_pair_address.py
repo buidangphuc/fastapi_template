@@ -87,7 +87,7 @@ async def test_pair_address_happy_path():
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
-            "/api/v1/pair_address",
+            "/api/v1/description/pair_address",
             params={"user_id": "u1", "listing_id": "l1", "style": "simple"},
             json=_body(),
         )
