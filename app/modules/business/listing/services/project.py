@@ -12,8 +12,6 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import defaultdict
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from loguru import logger
@@ -29,12 +27,6 @@ class ProjectSearchResponse(BaseModel):
     detailInfo: str | None = None
 
 
-@lru_cache(maxsize=1)
-def _summary_prompt_text() -> str:
-    path = Path(__file__).resolve().parent.parent / "prompts" / "project.txt"
-    return path.read_text(encoding="utf-8")
-
-
 class ProjectService:
     def __init__(
         self,
@@ -42,11 +34,13 @@ class ProjectService:
         chat_model: Any,
         mongo: MongoGateway,
         settings: Settings,
+        prompt_provider: Any,
     ) -> None:
         self._client = client
         self._chat_model = chat_model
         self._projects = mongo.collection(settings.MONGODB_PROJECT_COLLECTION)
         self._settings = settings
+        self._prompt_provider = prompt_provider
         self._locks: dict[Any, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def _search(self, legacy_id: Any) -> ProjectSearchResponse | None:
@@ -91,7 +85,10 @@ class ProjectService:
                     return None
 
                 messages = [
-                    {"role": "system", "content": _summary_prompt_text()},
+                    {
+                        "role": "system",
+                        "content": self._prompt_provider.get("project_summary"),
+                    },
                     {"role": "user", "content": detail.detailInfo},
                 ]
                 result = await self._chat_model.ainvoke(messages)

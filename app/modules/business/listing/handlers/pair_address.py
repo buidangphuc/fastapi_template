@@ -42,6 +42,7 @@ _ADDRESS_PREFIX_RE = re.compile(
 )
 _MAX_TITLE_LENGTH = 99
 _MAX_TITLE_ATTEMPTS = 2
+PROMPT_VERSION = "listing-pair-address-2026-06-02"
 
 
 class PairAddressGenerator:
@@ -408,4 +409,5 @@ class PairAddressGenerator:
             "description_length": len(description_processed),
             "generating_time": end_t - start_t,
             "llm_model_name": self._settings.CHAT_MODEL,
+            "prompt_version": PROMPT_VERSION,
         }

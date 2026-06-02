@@ -12,6 +12,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import Settings
+from app.modules.ai.llm.langfuse import build_langfuse_tracker
+from app.modules.business.listing.prompt_provider import (
+    FilePromptProvider,
+    LangfusePromptProvider,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -58,6 +63,13 @@ class ListingGeneratorAddon:
     ) -> None:
         resources.listing_http_client = build_listing_http_client(settings)
         resources.listing_chat_model = build_listing_chat_model(settings)
+        tracker = build_langfuse_tracker(
+            settings, instance_id="listing", service_name="listing-generator"
+        )
+        resources.listing_tracker = tracker
+        resources.listing_prompt_provider = LangfusePromptProvider(
+            tracker, fallback=FilePromptProvider()
+        )
 
     async def close(self, app: FastAPI, resources: ApplicationResources) -> None:
         client = resources.listing_http_client
@@ -65,3 +77,5 @@ class ListingGeneratorAddon:
             await client.aclose()
             resources.listing_http_client = None
         resources.listing_chat_model = None
+        resources.listing_tracker = None
+        resources.listing_prompt_provider = None

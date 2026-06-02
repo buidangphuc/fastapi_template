@@ -130,6 +130,7 @@ async def test_agenerate_replaces_placeholder_and_inserts_contact():
     assert "{ADDRESS_PLACEHOLDER}" not in result["description"]
     assert "Nguyễn Huệ" in result["description"]
     assert result["tokens"]["usage"]["completion_tokens"] == 22
+    assert result["prompt_version"] == "listing-pair-address-2026-06-02"
 
 
 async def test_agenerate_falls_back_when_title_too_long():

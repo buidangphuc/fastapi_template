@@ -35,7 +35,7 @@ def get_listing_store(request: Request) -> ListingStore:
     return ListingStore(get_mongo_gateway(request), get_app_settings(request.app))
 
 
-def get_description_generator(request: Request) -> DescriptionGenerator:
+def _build_generator_deps(request: Request):
     resources = get_app_resources(request.app)
     settings = get_app_settings(request.app)
     gateway = get_mongo_gateway(request)
@@ -46,32 +46,34 @@ def get_description_generator(request: Request) -> DescriptionGenerator:
     )
     nearby = NearbySearchService(resources.listing_http_client, settings)
     project = ProjectService(
-        resources.listing_http_client, chat_model, gateway, settings
+        resources.listing_http_client,
+        chat_model,
+        gateway,
+        settings,
+        resources.listing_prompt_provider,
     )
+    tracker = resources.listing_tracker
+    trace_config = tracker.trace_config() if tracker is not None else {}
+    return nearby, project, chat_model, settings, trace_config
+
+
+def get_description_generator(request: Request) -> DescriptionGenerator:
+    nearby, project, chat_model, settings, trace_config = _build_generator_deps(request)
     return DescriptionGenerator(
         nearby_service=nearby,
         project_service=project,
         chat_model=chat_model,
         settings=settings,
+        trace_config=trace_config,
     )
 
 
 def get_pair_address_generator(request: Request) -> PairAddressGenerator:
-    resources = get_app_resources(request.app)
-    settings = get_app_settings(request.app)
-    gateway = get_mongo_gateway(request)
-    chat_model = require(
-        resources.listing_chat_model,
-        code="listing_generator_not_configured",
-        message="Listing generator is not configured",
-    )
-    nearby = NearbySearchService(resources.listing_http_client, settings)
-    project = ProjectService(
-        resources.listing_http_client, chat_model, gateway, settings
-    )
+    nearby, project, chat_model, settings, trace_config = _build_generator_deps(request)
     return PairAddressGenerator(
         nearby_service=nearby,
         project_service=project,
         chat_model=chat_model,
         settings=settings,
+        trace_config=trace_config,
     )

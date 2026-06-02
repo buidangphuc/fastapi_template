@@ -33,6 +33,8 @@ from app.modules.business.listing.prompt import (
 )
 from app.modules.business.listing.schemas import AllParams
 
+PROMPT_VERSION = "listing-description-2026-06-02"
+
 
 class Title(BaseModel):
     output: str = Field(..., description="Generated Title")
@@ -260,4 +262,5 @@ class DescriptionGenerator:
             "description_length": len(content_out.get_description()),
             "generating_time": end_t - start_t,
             "llm_model_name": self._settings.CHAT_MODEL,
+            "prompt_version": PROMPT_VERSION,
         }

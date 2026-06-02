@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import httpx
 
 from app.modules.business.listing.models import Project
+from app.modules.business.listing.prompt_provider import FilePromptProvider
 from app.modules.business.listing.services.project import ProjectService
 from tests.factories import build_test_settings
 from tests.mongo_fake import FakeMongoGateway
@@ -35,7 +36,8 @@ def _service(handler, chat, mongo=None):
         transport=httpx.MockTransport(handler), base_url="http://bds"
     )
     mongo = mongo or FakeMongoGateway()
-    return ProjectService(client, chat, mongo, settings), mongo, settings
+    service = ProjectService(client, chat, mongo, settings, FilePromptProvider())
+    return service, mongo, settings
 
 
 async def test_get_summary_none_without_project_id():

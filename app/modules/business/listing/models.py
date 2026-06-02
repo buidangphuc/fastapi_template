@@ -43,6 +43,7 @@ class Listing(BaseModel):
     generating_time: float | None = None
     llm_model_name: str | None = None
     user_input: str | None = None
+    prompt_version: str | None = None
 
     @field_serializer("created_date", when_used="json")
     def _serialize_created_date(self, value: datetime) -> str:

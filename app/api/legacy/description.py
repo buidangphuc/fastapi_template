@@ -119,6 +119,7 @@ async def generate_description(
             user_input=params.model_dump_json(),
             platform=params.platform,
             version=get_app_settings(request.app).VERSION,
+            prompt_version=data.get("prompt_version"),
         )
         background_tasks.add_task(_submit_listing, store, listing)
         usage_response = await _increase_request(usage, user_id)

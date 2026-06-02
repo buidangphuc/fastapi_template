@@ -27,7 +27,8 @@ are not necessarily in scope now; they're recorded so nothing is lost.
 - [ ] **`contact_email`**: scaffold uses `str`; restore pydantic `EmailStr` (+ `email-validator` dep) in Phase 2 when the endpoint is wired.
 - [ ] **`AddressVersionType=NEW`** is now inert (location mapping dropped). Keep the param for contract compatibility, or drop from the request schema?
 - [ ] **Commit cadence**: Phase 0+1+2(part1) currently uncommitted on `dev_migrate_dgl`.
-- [ ] **LLM sampling-param pinning (Phase 2 Part 3)**: legacy pins `temperature/top_p/presence_penalty/frequency_penalty` on the OpenAI parse call. Via `ai/llm` the model comes from `ModelRouter` without params; decide how to pin (bind on the model before `with_structured_output`, or a small param-aware builder) vs. accept model defaults (output is non-deterministic anyway).
+- [x] **LLM sampling-param pinning** — RESOLVED (Phase 4): the listing chat model is built with `init_chat_model(CHAT_MODEL, temperature/top_p + model_kwargs penalties)` from `LISTING_LLM_*`; the Langfuse tracker is attached separately (not via `ModelRouter`), so params stay pinned and tracing works.
+- [x] **Langfuse** — ADOPTED (Phase 4): prompt management (`project_summary`) + tracing wired with a file fallback; ADR D3 revised.
 
 ### C. Parked improvements (deliberately NOT done — keep legacy behavior)
 - [ ] Usage quota **race condition** (read-modify-write) → atomic `find_one_and_update` `$inc`.
@@ -365,3 +366,41 @@ test assertion — one address variation legitimately omits the word "cũ".
   the existing `prompts/` asset directory (project.txt) — Python would resolve
   the package over the module.
 - **Verify:** behavior-preserving; ruff clean; full suite **397 passed**.
+
+---
+
+## Phase 4 — Langfuse prompt management + tracing (✅)
+
+- **Date:** 2026-06-02
+- **Decision change:** Langfuse is now **adopted** (ADR D3 revised from "deferred").
+
+| Added / Changed | Purpose |
+|---|---|
+| `business/listing/prompt_provider.py` | `PromptProvider` port + `LangfusePromptProvider` (primary) + `FilePromptProvider` (fallback). |
+| `prompts/project.txt` → `prompts/project_summary.txt` | named, fallback-able prompt asset. |
+| `services/project.py` | fetches `project_summary` via the prompt provider (was reading the file directly). |
+| `factory.py` | `ListingGeneratorAddon` builds a Langfuse tracker + prompt provider; resources hold `listing_tracker` / `listing_prompt_provider`. |
+| `api/legacy/deps.py` | generators get `trace_config` from the tracker (tracing); `ProjectService` gets the provider. |
+| `models.py::Listing` | `+ prompt_version`. |
+| `handlers/{description,pair_address}.py` | `PROMPT_VERSION` constant returned + stamped on the listing. |
+| `tests/.../test_prompt_provider.py` | 3 tests (file read, Langfuse-disabled→file fallback, Langfuse-available). |
+
+How it works:
+- **Static prompt** (`project_summary`) → Langfuse Prompt Management via
+  `tracker.get_prompt(name, label="production")`; **file fallback** keeps
+  local/test working (`LANGFUSE_ENABLED=false` → tracker raises → resolved from
+  `prompts/project_summary.txt`).
+- **Tracing** → generation runs with `tracker.trace_config()` callbacks, so each
+  call (exact rendered prompt + token usage) appears in Langfuse when enabled.
+- **Dynamic prompts** (description/pair_address) stay code-driven, versioned via
+  `PROMPT_VERSION` stamped on `Listing.prompt_version` (DB tracking) + captured
+  by tracing.
+- Sampling params stay pinned on the chat model (`init_chat_model` +
+  `LISTING_LLM_*`); the Langfuse tracker is attached separately.
+
+**Verify:** ruff clean; check-env green; full suite **400 passed, 3 skipped** (+3).
+
+### Remaining Phase 4 (hardening, optional)
+Durable outbox listing writes (replace `BackgroundTasks`), legacy error-envelope
+parity, eval scores via Langfuse, parked correctness fixes (atomic `$inc`,
+persist `day_limit`).

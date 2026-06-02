@@ -59,6 +59,8 @@ class ApplicationResources:
     mongo: MongoGateway | None = None
     listing_http_client: Any = None
     listing_chat_model: Any = None
+    listing_tracker: Any = None
+    listing_prompt_provider: Any = None
     outbox_store: OutboxStore | None = None
     principal_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
     ip_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None

@@ -70,10 +70,17 @@ contact insertion, title casing), and pin model params (`model`, `temperature`,
 accounting moves from `tiktoken` to langchain usage metadata, mapped back to the
 legacy `tokens.usage.*` shape on listings. Verified by golden/parity tests.
 
-**Langfuse deferred:** Langfuse is **not yet approved**, so we ship with
-`LANGFUSE_ENABLED=false` (the tracker is a no-op; do not call `get_prompt` /
-`score_trace`) and use **OTel** for interim tracing. Langfuse tracing, prompt
-management, and eval scores switch on once approved.
+**Langfuse adopted (revised 2026-06-02):** Langfuse IS used for this project —
+tracing on + prompt management. Generation is traced via a per-instance Langfuse
+tracker (`build_langfuse_tracker`, `trace_config` callbacks), so the exact
+rendered prompt + tokens are captured per call. Static prompts (e.g.
+`project_summary`) are fetched from Langfuse Prompt Management through a
+`PromptProvider` port; a **file fallback** keeps local/test working when
+`LANGFUSE_ENABLED=false` (the tracker is a no-op and `get_prompt` raises →
+resolved from the packaged `prompts/*.txt`). Dynamic, code-assembled prompts
+(description / pair_address) stay code-driven, versioned via a `PROMPT_VERSION`
+stamped on each listing and captured by tracing. Set `LANGFUSE_ENABLED=true`
+with keys in the DGL deployment.
 
 **Structured output (fast-follow):** moving the LLM call to structured output
 (`with_structured_output`) is the better long-term design and is planned right

@@ -95,6 +95,7 @@ async def test_agenerate_returns_parsed_and_inserts_contact():
     assert result["tokens"]["usage"]["completion_tokens"] == 22
     assert result["llm_model_name"] == "openai:gpt-4o-mini"
     assert result["prompt"]
+    assert result["prompt_version"] == "listing-description-2026-06-02"
 
 
 @pytest.mark.parametrize("template_id", list(ProfessionalTemplateType))
