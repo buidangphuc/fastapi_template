@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from app.modules.messaging.webhooks.signing import WebhookSigner
     from app.modules.platform.cache.gateway import CacheGateway
     from app.modules.platform.idempotency.store import IdempotencyStore
+    from app.modules.platform.mongo.gateway import MongoGateway
     from app.modules.platform.objects.gateway import ObjectGateway
     from app.modules.platform.rate_limit.service import (
         InMemoryRateLimiter,
@@ -55,6 +56,9 @@ class ApplicationResources:
     cache: CacheGateway | None = None
     idempotency_store: IdempotencyStore | None = None
     objects: ObjectGateway | None = None
+    mongo: MongoGateway | None = None
+    listing_http_client: Any = None
+    listing_chat_model: Any = None
     outbox_store: OutboxStore | None = None
     principal_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
     ip_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None

@@ -27,10 +27,12 @@ class BootstrapAddon(Protocol):
 
 def default_resource_addons() -> tuple[BootstrapAddon, ...]:
     from app.modules.ai.rag.factory import RagAddon
+    from app.modules.business.listing.factory import ListingGeneratorAddon
     from app.modules.messaging.outbox.factory import OutboxAddon
     from app.modules.messaging.webhooks.factory import WebhookAddon
     from app.modules.platform.cache.factory import CacheAddon
     from app.modules.platform.idempotency.factory import IdempotencyAddon
+    from app.modules.platform.mongo.factory import MongoAddon
     from app.modules.platform.objects.factory import ObjectAddon
     from app.modules.platform.rate_limit.factory import RateLimitAddon
 
@@ -39,6 +41,8 @@ def default_resource_addons() -> tuple[BootstrapAddon, ...]:
         IdempotencyAddon(),
         CacheAddon(),
         ObjectAddon(),
+        MongoAddon(),
+        ListingGeneratorAddon(),
         OutboxAddon(),
         WebhookAddon(),
         RagAddon(),

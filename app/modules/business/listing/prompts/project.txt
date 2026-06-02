@@ -1,0 +1,19 @@
+Summarize the real estate project post by extracting key information and keywords only. Exclude any dates prior to 2024. Focus on the main details, current status, and future developments.
+
+Requirements:
+Limit the summary to 300-500 tokens.
+Focus on keywords that highlight the core aspects of the project such as:
+Location (including nearby directions)
+Investor name
+Design (floor plan)
+Amenities
+Omit any unnecessary or repetitive details.
+Ensure the summary is concise and highlights essential selling points without extra context.
+Output Format (in Vietnamese):
+{
+  "Chủ đầu tư": "[investor_name]",
+  "Vị trí": "[location] (bao gồm các khu vực lân cận và hướng đi)",
+  "Thiết Kế - Mặt Bằng": "[floor plan] (bao gồm thiết kế)",
+  "Tiện ích": "[amenities inside] (bao gồm tiện ích bên trong và tiện ích xung quanh)",
+  "Pháp lý": "[legality]"
+}
