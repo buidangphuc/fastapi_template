@@ -11,6 +11,7 @@ from fastapi import Request
 
 from app.bootstrap.state import get_app_resources, get_app_settings, require
 from app.modules.business.listing.handlers.description import DescriptionGenerator
+from app.modules.business.listing.handlers.pair_address import PairAddressGenerator
 from app.modules.business.listing.services.listing_store import ListingStore
 from app.modules.business.listing.services.nearby import NearbySearchService
 from app.modules.business.listing.services.project import ProjectService
@@ -48,6 +49,27 @@ def get_description_generator(request: Request) -> DescriptionGenerator:
         resources.listing_http_client, chat_model, gateway, settings
     )
     return DescriptionGenerator(
+        nearby_service=nearby,
+        project_service=project,
+        chat_model=chat_model,
+        settings=settings,
+    )
+
+
+def get_pair_address_generator(request: Request) -> PairAddressGenerator:
+    resources = get_app_resources(request.app)
+    settings = get_app_settings(request.app)
+    gateway = get_mongo_gateway(request)
+    chat_model = require(
+        resources.listing_chat_model,
+        code="listing_generator_not_configured",
+        message="Listing generator is not configured",
+    )
+    nearby = NearbySearchService(resources.listing_http_client, settings)
+    project = ProjectService(
+        resources.listing_http_client, chat_model, gateway, settings
+    )
+    return PairAddressGenerator(
         nearby_service=nearby,
         project_service=project,
         chat_model=chat_model,

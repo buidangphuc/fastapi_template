@@ -312,6 +312,39 @@ across Phases 0–2 (349 → 390).**
 - [x] Background listing submit + usage increment (Part 4)
 - [x] Golden-output parity tests (mocked chat model) (Parts 1–4)
 
-### Next (plan Phase 3 / 4)
-- **Phase 3** — `POST /pair_address` (the ~1000-line generator; refactor into units, reuse Phase 2 services).
-- **Phase 4** — hardening: structured-output fast-follow for other paths, durable outbox listing writes, Langfuse enablement, legacy error-envelope parity, parked correctness fixes.
+---
+
+## Phase 3 — `POST /pair_address` (COMPLETE ✅)
+
+- **Date:** 2026-06-02
+- Ported the ~1070-line pair-address generator (refactored), reusing Phase 2 primitives.
+
+| Added | Purpose |
+|---|---|
+| `app/modules/business/listing/handlers/pair_address.py` | `PairAddressGenerator` — reuses `Content`/prompt/utils/services; pair-address specifics. |
+| `app/api/legacy/pair_address.py` | `POST /api/v1/pair_address` (PairAddressParams / PairAddressDescriptionResponse); reuses the description endpoint's quota dep + submit/increment helpers. |
+| `app/api/legacy/deps.py::get_pair_address_generator` | Per-request generator assembly. |
+| `tests/unit/modules/listing/test_pair_address.py` + `tests/integration/test_legacy_pair_address.py` | 7 tests. |
+
+Changed: legacy router includes the pair_address route.
+
+Pair-address specifics ported: `{ADDRESS_PLACEHOLDER}` mechanism (LLM emits the
+token → post-process `_replace_address_placeholders` injects a combined
+"new (old cũ)" address via random variations), `_normalize_address_prefixes`
+(lowercase đường/phường/quận…), `address_for_title` (new vs old per
+`address_version`), title-length retry (≤99 chars, 2 attempts) → deterministic
+`_build_fallback_title`. LLM via `with_structured_output(Content)`; usage mapped.
+No new settings (reuses GMAP_* / LISTING_LLM_*).
+
+**Verify:** ruff clean; full suite **397 passed, 3 skipped** (+7). Fixed a flaky
+test assertion — one address variation legitimately omits the word "cũ".
+
+### Re-check vs plan §4 Phase 3
+- [x] Port the pair_address generator, refactored into focused units
+- [x] Reuse Phase 2 services (nearby / project / templates / prompt / utils)
+- [x] Parity tests (mocked chat model)
+
+### Next (plan Phase 4)
+- **Phase 4** — hardening: structured-output fast-follow for other paths, durable
+  outbox listing writes, Langfuse enablement, legacy error-envelope parity,
+  parked correctness fixes (atomic `$inc`, persist day_limit).
