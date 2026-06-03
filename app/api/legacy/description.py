@@ -2,29 +2,27 @@
 bds-genai-dgl core/generator/api/v1/description.py), behavior- and
 envelope-compatible.
 
-Flow: enforce usage quota (dependency) → pick template from the user's recent AI
-listings → generate → background-submit the listing + increment usage → return
-the legacy envelope. Errors inside the body return ``response_base.fail()``
-(matching legacy); the quota dependency raises 429 before the body runs.
+Flow: reserve usage quota → pick template from the user's recent AI listings →
+generate → background-submit the listing → finalize quota → return the legacy
+envelope. Body errors refund the reservation and return ``response_base.fail()``
+(matching legacy); exhausted quota raises 429 before generation runs.
 """
 
 from __future__ import annotations
 
 import traceback
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from loguru import logger
 
 from app.api.legacy.deps import (
     get_description_generator,
+    get_listing_quota_service,
     get_listing_store,
-    get_usage_service,
 )
 from app.api.legacy.response import ResponseModel, response_base
 from app.bootstrap.state import get_app_settings
-from app.core.errors import RateLimitError
 from app.modules.business.listing.config import (
     DATETIME_FORMAT,
     AddressVersionType,
@@ -37,23 +35,10 @@ from app.modules.business.listing.handlers.description import DescriptionGenerat
 from app.modules.business.listing.models import Listing
 from app.modules.business.listing.schemas import AllParams, DescriptionResponse
 from app.modules.business.listing.services.listing_store import ListingStore
-from app.modules.business.listing.services.usage import UsageService
+from app.modules.business.listing.services.quota import ListingQuotaService
 from app.modules.business.listing.templates import select_template
 
 router = APIRouter()
-
-
-async def enforce_usage_limit(
-    request: Request,
-    user_id: str = Query(description="User ID"),
-    service: UsageService = Depends(get_usage_service),
-) -> None:
-    data = await service.get_remaining_request(user_id=user_id)
-    logger.info(f"User {user_id} already used {data['used_requests']} requests")
-    if data["used_requests"] >= get_app_settings(request.app).MAX_USAGE_LIMIT_PER_USER:
-        raise RateLimitError(
-            message=f"Request limit exceeded. Retry after {data['reset_date']}",
-        )
 
 
 async def _submit_listing(store: ListingStore, listing: Listing) -> None:
@@ -61,18 +46,7 @@ async def _submit_listing(store: ListingStore, listing: Listing) -> None:
     logger.info(f"Listing submitted for user_id: {listing.user_id}")
 
 
-async def _increase_request(service: UsageService, user_id: str) -> dict[str, Any]:
-    user = await service.get_user(user_id=user_id)
-    if user is not None:
-        await service.increase_request(user=user, request_count=1)
-    return await service.get_remaining_request(user_id=user_id)
-
-
-@router.post(
-    "/description",
-    summary="Generate Description",
-    dependencies=[Depends(enforce_usage_limit)],
-)
+@router.post("/description", summary="Generate Description")
 async def generate_description(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -82,9 +56,11 @@ async def generate_description(
     style: StyleType = Query(description="Style"),
     address_version: AddressVersionType = Query(default=AddressVersionType.OLD),
     generator: DescriptionGenerator = Depends(get_description_generator),
-    usage: UsageService = Depends(get_usage_service),
+    quota: ListingQuotaService = Depends(get_listing_quota_service),
     store: ListingStore = Depends(get_listing_store),
 ) -> ResponseModel:
+    quota_reservation = await quota.reserve(user_id)
+    quota_finalized = False
     try:
         tone = ToneType.SIMPLE if style == StyleType.SIMPLE else ToneType.PROFESSIONAL
         last_ai_listing = await store.get_last_listing_by_ai(
@@ -122,7 +98,8 @@ async def generate_description(
             prompt_version=data.get("prompt_version"),
         )
         background_tasks.add_task(_submit_listing, store, listing)
-        usage_response = await _increase_request(usage, user_id)
+        usage_response = await quota.finalize(quota_reservation)
+        quota_finalized = True
 
         return await response_base.success(
             data=DescriptionResponse(
@@ -132,5 +109,10 @@ async def generate_description(
             )
         )
     except Exception:
+        if not quota_finalized:
+            try:
+                await quota.refund(quota_reservation)
+            except Exception:
+                logger.error(f"Error refunding quota: {traceback.format_exc()}")
         logger.error(f"Error generating description: {traceback.format_exc()}")
         return await response_base.fail()

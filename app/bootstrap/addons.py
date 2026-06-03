@@ -34,6 +34,7 @@ def default_resource_addons() -> tuple[BootstrapAddon, ...]:
     from app.modules.platform.idempotency.factory import IdempotencyAddon
     from app.modules.platform.mongo.factory import MongoAddon
     from app.modules.platform.objects.factory import ObjectAddon
+    from app.modules.platform.quota.factory import QuotaAddon
     from app.modules.platform.rate_limit.factory import RateLimitAddon
 
     return (
@@ -43,6 +44,7 @@ def default_resource_addons() -> tuple[BootstrapAddon, ...]:
         ObjectAddon(),
         MongoAddon(),
         ListingGeneratorAddon(),
+        QuotaAddon(),
         OutboxAddon(),
         WebhookAddon(),
         RagAddon(),

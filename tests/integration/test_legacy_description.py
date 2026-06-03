@@ -1,4 +1,3 @@
-from datetime import datetime
 from types import SimpleNamespace
 
 from httpx import ASGITransport, AsyncClient
@@ -37,12 +36,13 @@ class _StubChat:
         return _StubStructured(self._content, self._usage)
 
 
-def _app():
+def _app(**overrides):
     settings = build_test_settings(
         MONGO_ENABLED=True,
         GMAP_PG_ENABLE=False,
         PROJECT_ENABLE=False,
         CHAT_MODEL="openai:gpt-4o-mini",
+        **overrides,
     )
     app = create_app(settings=settings, init_resources=False)
     app.state.resources.mongo = FakeMongoGateway()
@@ -99,22 +99,19 @@ async def test_generate_description_happy_path():
 
 
 async def test_generate_description_quota_exceeded_returns_429():
-    app = _app()
-    await app.state.resources.mongo.collection(
-        app.state.settings.MONGODB_USAGE_COLLECTION
-    ).insert_one(
-        {
-            "user_id": "u2",
-            "used_requests": 100,
-            "first_request_date": datetime.now(),
-        }
-    )
+    app = _app(MAX_USAGE_LIMIT_PER_USER=1)
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.post(
+        first = await client.post(
             "/api/v1/description",
             params={"user_id": "u2", "listing_id": "l1", "style": "simple"},
             json=_params_body(),
         )
+        response = await client.post(
+            "/api/v1/description",
+            params={"user_id": "u2", "listing_id": "l2", "style": "simple"},
+            json=_params_body(),
+        )
+    assert first.status_code == 200
     assert response.status_code == 429

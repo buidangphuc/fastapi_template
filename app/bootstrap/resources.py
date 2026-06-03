@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from app.modules.platform.idempotency.store import IdempotencyStore
     from app.modules.platform.mongo.gateway import MongoGateway
     from app.modules.platform.objects.gateway import ObjectGateway
+    from app.modules.platform.quota.service import QuotaService
     from app.modules.platform.rate_limit.service import (
         InMemoryRateLimiter,
         RedisRateLimiter,
@@ -61,6 +62,7 @@ class ApplicationResources:
     listing_chat_model: Any = None
     listing_tracker: Any = None
     listing_prompt_provider: Any = None
+    quota: QuotaService | None = None
     outbox_store: OutboxStore | None = None
     principal_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
     ip_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None

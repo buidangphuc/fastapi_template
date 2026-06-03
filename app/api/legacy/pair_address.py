@@ -5,8 +5,8 @@ Mounted under the `/description` prefix in ``app/api/legacy/router.py`` so the
 full path matches legacy byte-for-byte (`/api/v1/description/pair_address`).
 
 Same flow as `/description` but with the pair-address generator and
-`PairAddressParams`/`PairAddressDescriptionResponse`. Reuses the quota
-dependency + submit/increment helpers from the description endpoint.
+`PairAddressParams`/`PairAddressDescriptionResponse`. Uses the shared listing
+quota reservation flow and submit helper.
 """
 
 from __future__ import annotations
@@ -18,15 +18,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from loguru import logger
 
 from app.api.legacy.deps import (
+    get_listing_quota_service,
     get_listing_store,
     get_pair_address_generator,
-    get_usage_service,
 )
-from app.api.legacy.description import (
-    _increase_request,
-    _submit_listing,
-    enforce_usage_limit,
-)
+from app.api.legacy.description import _submit_listing
 from app.api.legacy.response import ResponseModel, response_base
 from app.bootstrap.state import get_app_settings
 from app.modules.business.listing.config import (
@@ -44,17 +40,13 @@ from app.modules.business.listing.schemas import (
     PairAddressParams,
 )
 from app.modules.business.listing.services.listing_store import ListingStore
-from app.modules.business.listing.services.usage import UsageService
+from app.modules.business.listing.services.quota import ListingQuotaService
 from app.modules.business.listing.templates import select_template
 
 router = APIRouter()
 
 
-@router.post(
-    "/pair_address",
-    summary="Generate Pair Address Description",
-    dependencies=[Depends(enforce_usage_limit)],
-)
+@router.post("/pair_address", summary="Generate Pair Address Description")
 async def generate_pair_address_description(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -64,9 +56,11 @@ async def generate_pair_address_description(
     style: StyleType = Query(description="Style"),
     address_version: AddressVersionType = Query(default=AddressVersionType.OLD),
     generator: PairAddressGenerator = Depends(get_pair_address_generator),
-    usage: UsageService = Depends(get_usage_service),
+    quota: ListingQuotaService = Depends(get_listing_quota_service),
     store: ListingStore = Depends(get_listing_store),
 ) -> ResponseModel:
+    quota_reservation = await quota.reserve(user_id)
+    quota_finalized = False
     try:
         tone = ToneType.SIMPLE if style == StyleType.SIMPLE else ToneType.PROFESSIONAL
         last_ai_listing = await store.get_last_listing_by_ai(
@@ -104,7 +98,8 @@ async def generate_pair_address_description(
             prompt_version=data.get("prompt_version"),
         )
         background_tasks.add_task(_submit_listing, store, listing)
-        usage_response = await _increase_request(usage, user_id)
+        usage_response = await quota.finalize(quota_reservation)
+        quota_finalized = True
 
         return await response_base.success(
             data=PairAddressDescriptionResponse(
@@ -114,6 +109,11 @@ async def generate_pair_address_description(
             )
         )
     except Exception:
+        if not quota_finalized:
+            try:
+                await quota.refund(quota_reservation)
+            except Exception:
+                logger.error(f"Error refunding quota: {traceback.format_exc()}")
         logger.error(
             f"Error generating pair-address description: {traceback.format_exc()}"
         )

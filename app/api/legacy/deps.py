@@ -15,6 +15,10 @@ from app.modules.business.listing.handlers.pair_address import PairAddressGenera
 from app.modules.business.listing.services.listing_store import ListingStore
 from app.modules.business.listing.services.nearby import NearbySearchService
 from app.modules.business.listing.services.project import ProjectService
+from app.modules.business.listing.services.quota import (
+    ListingQuotaService,
+    build_listing_quota_service,
+)
 from app.modules.business.listing.services.usage import UsageService
 from app.modules.platform.mongo.gateway import MongoGateway
 
@@ -29,6 +33,13 @@ def get_mongo_gateway(request: Request) -> MongoGateway:
 
 def get_usage_service(request: Request) -> UsageService:
     return UsageService(get_mongo_gateway(request), get_app_settings(request.app))
+
+
+def get_listing_quota_service(request: Request) -> ListingQuotaService:
+    return build_listing_quota_service(
+        get_mongo_gateway(request),
+        get_app_settings(request.app),
+    )
 
 
 def get_listing_store(request: Request) -> ListingStore:

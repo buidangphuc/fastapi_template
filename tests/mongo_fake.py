@@ -13,7 +13,44 @@ from typing import Any
 
 
 def _matches(doc: dict[str, Any], query: dict[str, Any]) -> bool:
-    return all(doc.get(key) == value for key, value in query.items())
+    for key, value in query.items():
+        if key == "$expr":
+            if not _eval_expr(doc, value):
+                return False
+            continue
+        if doc.get(key) != value:
+            return False
+    return True
+
+
+def _eval_expr(doc: dict[str, Any], expr: dict[str, Any]) -> bool:
+    if "$lte" in expr:
+        left, right = expr["$lte"]
+        return _eval_value(doc, left) <= _eval_value(doc, right)
+    raise NotImplementedError(expr)
+
+
+def _eval_value(doc: dict[str, Any], value: Any) -> Any:
+    if isinstance(value, str) and value.startswith("$"):
+        return doc.get(value[1:], 0)
+    if isinstance(value, dict) and "$add" in value:
+        return sum(_eval_value(doc, item) for item in value["$add"])
+    return value
+
+
+def _apply_update(
+    doc: dict[str, Any],
+    update: dict[str, Any],
+    *,
+    is_insert: bool = False,
+) -> None:
+    if is_insert:
+        for key, value in update.get("$setOnInsert", {}).items():
+            doc[key] = value
+    for key, value in update.get("$set", {}).items():
+        doc[key] = value
+    for key, value in update.get("$inc", {}).items():
+        doc[key] = doc.get(key, 0) + value
 
 
 class FakeCursor:
@@ -54,11 +91,37 @@ class FakeCollection:
     async def insert_one(self, document: dict[str, Any]) -> None:
         self.docs.append(copy.deepcopy(document))
 
-    async def update_one(self, query: dict[str, Any], update: dict[str, Any]) -> None:
+    async def update_one(
+        self,
+        query: dict[str, Any],
+        update: dict[str, Any],
+        upsert: bool = False,
+    ) -> None:
         for doc in self.docs:
             if _matches(doc, query):
-                doc.update(update.get("$set", {}))
+                _apply_update(doc, update)
                 return
+        if upsert:
+            new_doc = {
+                key: value for key, value in query.items() if not key.startswith("$")
+            }
+            _apply_update(new_doc, update, is_insert=True)
+            self.docs.append(copy.deepcopy(new_doc))
+
+    async def find_one_and_update(
+        self,
+        query: dict[str, Any],
+        update: dict[str, Any],
+        return_document: Any = None,
+    ) -> dict[str, Any] | None:
+        for doc in self.docs:
+            if _matches(doc, query):
+                before = copy.deepcopy(doc)
+                _apply_update(doc, update)
+                if return_document:
+                    return copy.deepcopy(doc)
+                return before
+        return None
 
     async def delete_many(self, query: dict[str, Any]) -> None:
         if not query:
