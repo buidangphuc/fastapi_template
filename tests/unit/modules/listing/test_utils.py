@@ -1,4 +1,4 @@
-from app.modules.business.listing.utils import (
+from app.modules.business.listing.generation.utils import (
     cvt_shorten_number,
     number_standardize,
     random_use,

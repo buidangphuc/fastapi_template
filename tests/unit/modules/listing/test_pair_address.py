@@ -1,19 +1,19 @@
 from types import SimpleNamespace
 
-from app.modules.business.listing.config import (
+from app.modules.business.listing.generation.description import (
+    Content,
+    Description,
+    Title,
+)
+from app.modules.business.listing.generation.pair_address import PairAddressGenerator
+from app.modules.business.listing.schemas import PairAddressParams
+from app.modules.business.listing.types import (
     AddressVersionType,
     LanguageType,
     SimpleTemplateType,
     StyleType,
     ToneType,
 )
-from app.modules.business.listing.handlers.description import (
-    Content,
-    Description,
-    Title,
-)
-from app.modules.business.listing.handlers.pair_address import PairAddressGenerator
-from app.modules.business.listing.schemas import PairAddressParams
 from tests.factories import build_test_settings
 
 

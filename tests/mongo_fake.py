@@ -53,9 +53,30 @@ def _apply_update(
         doc[key] = doc.get(key, 0) + value
 
 
+def _project(doc: dict[str, Any], projection: dict[str, Any] | None) -> dict[str, Any]:
+    if projection is None:
+        return copy.deepcopy(doc)
+
+    includes = {key for key, value in projection.items() if value}
+    excludes = {key for key, value in projection.items() if not value}
+    if includes:
+        projected = {key: copy.deepcopy(doc[key]) for key in includes if key in doc}
+        if "_id" not in excludes and "_id" in doc:
+            projected["_id"] = copy.deepcopy(doc["_id"])
+        return projected
+    return {
+        key: copy.deepcopy(value) for key, value in doc.items() if key not in excludes
+    }
+
+
 class FakeCursor:
-    def __init__(self, docs: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        docs: list[dict[str, Any]],
+        projection: dict[str, Any] | None = None,
+    ) -> None:
         self._docs = docs
+        self._projection = projection
 
     def sort(self, key: str, direction: int = 1) -> FakeCursor:
         self._docs.sort(key=lambda doc: doc.get(key), reverse=direction < 0)
@@ -70,7 +91,7 @@ class FakeCursor:
 
     async def _iterate(self) -> AsyncIterator[dict[str, Any]]:
         for doc in self._docs:
-            yield copy.deepcopy(doc)
+            yield _project(doc, self._projection)
 
 
 class FakeCollection:
@@ -83,9 +104,14 @@ class FakeCollection:
                 return copy.deepcopy(doc)
         return None
 
-    def find(self, query: dict[str, Any]) -> FakeCursor:
+    def find(
+        self,
+        query: dict[str, Any],
+        projection: dict[str, Any] | None = None,
+    ) -> FakeCursor:
         return FakeCursor(
-            [copy.deepcopy(doc) for doc in self.docs if _matches(doc, query)]
+            [copy.deepcopy(doc) for doc in self.docs if _matches(doc, query)],
+            projection,
         )
 
     async def insert_one(self, document: dict[str, Any]) -> None:
@@ -107,6 +133,15 @@ class FakeCollection:
             }
             _apply_update(new_doc, update, is_insert=True)
             self.docs.append(copy.deepcopy(new_doc))
+
+    async def update_many(
+        self,
+        query: dict[str, Any],
+        update: dict[str, Any],
+    ) -> None:
+        for doc in self.docs:
+            if _matches(doc, query):
+                _apply_update(doc, update)
 
     async def find_one_and_update(
         self,

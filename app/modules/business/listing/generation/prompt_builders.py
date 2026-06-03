@@ -21,7 +21,17 @@ from typing import Any
 import numpy as np
 
 from app.core.config import Settings
-from app.modules.business.listing.config import (
+from app.modules.business.listing.generation.prompt import (
+    OpenAIPromptTemplate,
+    PromptSectionTemplate,
+)
+from app.modules.business.listing.generation.utils import (
+    cvt_shorten_number,
+    number_standardize,
+    random_use,
+    random_use_one_in_list,
+)
+from app.modules.business.listing.types import (
     GoalTypeVN,
     InteriorTypeVN,
     LegalityTypeVN,
@@ -30,16 +40,6 @@ from app.modules.business.listing.config import (
     SimpleTemplateType,
     StyleType,
     ToneType,
-)
-from app.modules.business.listing.prompt import (
-    OpenAIPromptTemplate,
-    PromptSectionTemplate,
-)
-from app.modules.business.listing.utils import (
-    cvt_shorten_number,
-    number_standardize,
-    random_use,
-    random_use_one_in_list,
 )
 
 DESCRIPTION_ADDRESS_OPTIONS = [

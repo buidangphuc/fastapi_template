@@ -41,7 +41,8 @@ OpenAI model `gpt-4o-mini-2024-07-18`, Mongo `cmp_new`) via `scripts/compare_leg
 - [x] **`tests.factories`** — no longer flagged by pyright after the exclude fix (0 mentions).
 - [x] **`README.md` stale layout** — FIXED: module tree now reflects the real `ai/ business/ messaging/ platform/` grouping; `app.modules.llm.runtime` → `app.modules.ai.llm.runtime`.
 - [ ] **Local `.env` has keys not in `Settings`** (langfuse docker keys, `api_key_pepper`, …) → only bites a dotenv-file read under `extra="forbid"`; in Docker the keys arrive as OS env vars (ignored) so the container boots fine. Env-hygiene only; left as-is.
-- [ ] **6 pyright errors in DGL code** (`reportOptionalMemberAccess`, newly visible): `handlers/pair_address.py` (`content_out: Content | None` from `with_structured_output` — parse can yield None) ×4; `services/nearby.py` (`Result.name: str | None` → `.lower()`) ×2. Type-narrowing fix touches frozen handler/service + implies a None-handling decision → deferred (not "no logic impact").
+- [x] **DGL pyright errors** — RESOLVED in the DGL cleanup/refactor pass; current
+  `uv run pyright` reports 0 errors.
 
 ### B. Decisions deferred / need confirmation
 - [ ] **FastAPI pin**: target `<0.116` vs legacy `0.135.1`. Bump before Phase 2 (porting generator code written against 0.135)? (recommended)
@@ -61,7 +62,67 @@ OpenAI model `gpt-4o-mini-2024-07-18`, Mongo `cmp_new`) via `scripts/compare_leg
 - [ ] **Idempotency** on `/description` (BFF `Idempotency-Key`) → opt-in.
 - [ ] Adopt-for-free **#11 eval harness** + group C (async-tasks/idempotency/cache/resilience/audit) + pagination/RAG/gzip — parked (per "làm đến 10").
 
-### D. Legacy behaviors/gotchas to preserve in later phases
+### D. Endpoint wiring convention going forward
+Use this convention for any new legacy/listing endpoint. This supersedes the
+earlier `app/api/legacy/deps.py` approach, which was removed after it started
+collecting too much listing-specific wiring.
+
+```text
+app/api/legacy/<endpoint>.py
+  -> request/response contract only
+  -> FastAPI params/body/query
+  -> Depends(app.modules.business.listing.providers.<provider>)
+  -> calls one module service method
+  -> maps result to the legacy envelope
+
+app/modules/business/listing/providers.py
+  -> FastAPI/runtime adapter for listing
+  -> reads app resources/settings
+  -> builds Mongo store, quota service, generators, template selection, etc.
+
+app/modules/business/listing/services/*.py
+  -> application use-case orchestration
+  -> dependencies are explicit constructor args
+  -> no FastAPI Request, no app.state, no global service lookup
+
+app/modules/business/listing/stores/*.py
+  -> Mongo/SQL persistence adapters owned by listing
+
+app/modules/business/listing/integrations/*.py
+  -> external API adapters owned by listing
+
+app/modules/business/listing/generation/*.py
+  -> prompt builders, generation engines, parsers, template utilities
+```
+
+When adding a new endpoint:
+
+1. Put endpoint transport code in `app/api/legacy/<feature>.py`.
+2. Put or reuse use-case orchestration in
+   `app/modules/business/listing/services/`.
+3. Add a provider in `app/modules/business/listing/providers.py` only when the
+   endpoint needs runtime resources such as Mongo, settings, chat model, HTTP
+   client, prompt provider, tracker, or quota.
+4. Put DB details in `stores/`, external API details in `integrations/`, and
+   prompt/model parsing details in `generation/`.
+5. Keep API code thin: no generator/store/template construction in the endpoint.
+6. Do not recreate `app/api/legacy/deps.py` for feature-specific dependencies.
+   If another domain needs the same pattern, create that domain's own provider
+   module under `app/modules/business/<domain>/`.
+
+Minimal shape:
+
+```python
+@router.post("/new_feature")
+async def new_feature(
+    payload: NewFeatureRequest,
+    service: NewFeatureService = Depends(get_new_feature_service),
+) -> LegacyResponseModel:
+    result = await service.run(payload)
+    return await legacy_response.success(data=result)
+```
+
+### E. Legacy behaviors/gotchas to preserve in later phases
 - [ ] **Google Maps API requires a `Referer` header** (see legacy `GMAP.md`) — load-bearing; carry verbatim in the nearby service (Phase 2).
 - [ ] **BDS project API returns 301 redirects** that legacy follows (`ProjectSearch`/`ProjectLegacySearch`).
 - [ ] **Project summary** uses OpenAI + Mongo cache (`MONGODB_PROJECT_COLLECTION`); route its LLM call through `ai/llm` too (Phase 2).
@@ -76,7 +137,7 @@ OpenAI model `gpt-4o-mini-2024-07-18`, Mongo `cmp_new`) via `scripts/compare_leg
 - [ ] **`ModelRouter` fake model (`FakeListChatModel`) can't do structured output** → generator unit tests inject a stub chat model; real runs need `CHAT_MODEL` set to a tool-calling-capable model.
 - [ ] **Project summary reads `prompt/project.txt`** from CWD in legacy → port that asset into the package and load by package-relative path (not `os.getcwd()`).
 
-### E. Dropped (not migrating)
+### F. Dropped (not migrating)
 - location mapping: service + schema + `LOCATION_MAPPING_*` config + the `address_version=NEW`→old-address branch. (Per user; deprecated in legacy.)
 
 ---

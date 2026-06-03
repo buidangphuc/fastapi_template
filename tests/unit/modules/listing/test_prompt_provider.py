@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.modules.business.listing.prompt_provider import (
+from app.modules.business.listing.generation.prompt_provider import (
     FilePromptProvider,
     LangfusePromptProvider,
 )

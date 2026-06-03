@@ -165,4 +165,5 @@ class ParamLangMap:
 
     @classmethod
     def get(cls, key: object, lang: str = "vi") -> object:
-        return cls.items.get(key, {}).get(lang, key)
+        lookup_key = str(key)
+        return cls.items.get(lookup_key, {}).get(lang, key)

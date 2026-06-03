@@ -2,14 +2,14 @@ from types import SimpleNamespace
 
 from httpx import ASGITransport, AsyncClient
 
-from app.api.legacy.deps import get_description_generator
 from app.bootstrap.application import create_app
-from app.modules.business.listing.handlers.description import (
+from app.bootstrap.services import LISTING_SERVICE_NAME, build_listing_runtime
+from app.modules.business.listing.generation.description import (
     Content,
     Description,
-    DescriptionGenerator,
     Title,
 )
+from app.modules.platform.quota.factory import build_quota_service
 from tests.factories import build_test_settings
 from tests.mongo_fake import FakeMongoGateway
 
@@ -36,9 +36,19 @@ class _StubChat:
         return _StubStructured(self._content, self._usage)
 
 
+class _StubHttpClient:
+    async def request(self, *args, **kwargs):
+        raise AssertionError("HTTP client should not be used in this test")
+
+    async def aclose(self):
+        return None
+
+
 def _app(**overrides):
     settings = build_test_settings(
         MONGO_ENABLED=True,
+        QUOTA_ENABLED=True,
+        QUOTA_BACKEND="mongo",
         GMAP_PG_ENABLE=False,
         PROJECT_ENABLE=False,
         CHAT_MODEL="openai:gpt-4o-mini",
@@ -46,18 +56,22 @@ def _app(**overrides):
     )
     app = create_app(settings=settings, init_resources=False)
     app.state.resources.mongo = FakeMongoGateway()
+    app.state.resources.quota = build_quota_service(
+        app.state.settings,
+        mongo=app.state.resources.mongo,
+    )
     content = Content(
         title=Title(output="Bán nhà Q1"),
         description=Description(output="Liên hệ <contact_name> <contact_phone>"),
         quality_score=0.9,
     )
-    generator = DescriptionGenerator(
-        nearby_service=None,
-        project_service=None,
+    app.state.resources.services[LISTING_SERVICE_NAME] = build_listing_runtime(
+        settings=app.state.settings,
+        mongo=app.state.resources.mongo,
+        quota=app.state.resources.quota,
+        http_client=_StubHttpClient(),
         chat_model=_StubChat(content, {"input_tokens": 11, "output_tokens": 22}),
-        settings=settings,
     )
-    app.dependency_overrides[get_description_generator] = lambda: generator
     return app
 
 
@@ -86,6 +100,7 @@ async def test_generate_description_happy_path():
             params={"user_id": "u1", "listing_id": "l1", "style": "simple"},
             json=_params_body(),
         )
+        usage = await client.get("/api/v1/usage_limit/u1")
     assert response.status_code == 200
     body = response.json()
     assert body["code"] == 200
@@ -96,6 +111,7 @@ async def test_generate_description_happy_path():
     assert "<contact_phone>" not in body["data"]["description"]
     assert body["data"]["usage"]["used_requests"] == 1
     assert body["data"]["usage"]["total_requests"] == 100
+    assert usage.json()["data"]["used_requests"] == 1
 
 
 async def test_generate_description_quota_exceeded_returns_429():

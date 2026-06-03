@@ -1,6 +1,6 @@
 import httpx
 
-from app.modules.business.listing.services.nearby import (
+from app.modules.business.listing.integrations.nearby import (
     NearbySearchService,
     build_nearby_headers,
 )

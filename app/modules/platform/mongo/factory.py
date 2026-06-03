@@ -19,6 +19,10 @@ def build_mongo_gateway(settings: Settings) -> MongoGateway:
     )
 
 
+async def check_mongo_connection(gateway: MongoGateway) -> None:
+    await gateway.ping()
+
+
 class MongoAddon:
     name = "mongo"
 

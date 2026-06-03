@@ -160,16 +160,29 @@ class NearbySearchService:
                 if not resolved.predictions:
                     logger.error(f"Failed to resolve place_id for place {place}")
                     return {}
-                detail = await self.place_detail(resolved.predictions[0].place_id)
+                place_id = resolved.predictions[0].place_id
+                if place_id is None:
+                    logger.error(f"Missing place_id for place {place}")
+                    return {}
+                detail = await self.place_detail(place_id)
                 if detail is None:
                     return None
                 lat, lng = detail.lat, detail.lng
+            if lat is None or lng is None:
+                return {}
+            search_lat = lat
+            search_lng = lng
 
             async def _one(place_type: str) -> NearbySearchResponse | None:
                 async with semaphore:
                     try:
                         return await self.nearby_search(
-                            lat, lng, radius, place_type, language, rankby
+                            search_lat,
+                            search_lng,
+                            radius,
+                            place_type,
+                            language,
+                            rankby,
                         )
                     except Exception as exc:
                         logger.error(f"Nearby search failed for {place_type}: {exc}")
@@ -212,10 +225,11 @@ class NearbySearchService:
             filtered = [
                 r
                 for r in results
-                if any(k in r.name.lower() for k in keywords) and score(r) >= keep
+                if any(k in (r.name or "").lower() for k in keywords)
+                and score(r) >= keep
             ]
         elif nearby.nearby_type == "school":
             filtered = [r for r in results if score(r) >= keep]
         else:
             filtered = []
-        return [r.name.lower() for r in filtered]
+        return [(r.name or "").lower() for r in filtered]

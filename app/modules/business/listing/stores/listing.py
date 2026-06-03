@@ -8,8 +8,8 @@ singleton.
 from __future__ import annotations
 
 from app.core.config import Settings
-from app.modules.business.listing.config import StyleType
 from app.modules.business.listing.models import Listing
+from app.modules.business.listing.types import StyleType
 from app.modules.platform.mongo.gateway import MongoGateway
 
 
@@ -41,6 +41,22 @@ class ListingStore:
         )
         listings = [Listing(**doc) async for doc in cursor]
         return listings or None
+
+    async def get_recent_ai_template_ids(
+        self,
+        user_id: str,
+        style: StyleType,
+        limit: int = 2,
+    ) -> list[str | None]:
+        cursor = (
+            self._submit.find(
+                {"user_id": user_id, "author": "ai", "style": style.value},
+                {"template_id": 1, "_id": 0},
+            )
+            .sort("created_date", -1)
+            .limit(limit)
+        )
+        return [doc.get("template_id") async for doc in cursor]
 
     async def create_listing(self, listing: Listing) -> Listing:
         await self._submit.insert_one(listing.model_dump(by_alias=True))

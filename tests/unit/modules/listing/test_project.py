@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import httpx
 
+from app.modules.business.listing.generation.prompt_provider import FilePromptProvider
+from app.modules.business.listing.integrations.project import ProjectService
 from app.modules.business.listing.models import Project
-from app.modules.business.listing.prompt_provider import FilePromptProvider
-from app.modules.business.listing.services.project import ProjectService
 from tests.factories import build_test_settings
 from tests.mongo_fake import FakeMongoGateway
 

@@ -17,7 +17,7 @@ from typing import Any, Protocol
 
 from loguru import logger
 
-_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+_PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
 
 class PromptProvider(Protocol):

@@ -1,15 +1,18 @@
 from collections import Counter
 from datetime import datetime
 
-from app.modules.business.listing.config import (
+from app.modules.business.listing.generation.templates import (
+    calculate_weight,
+    select_template,
+)
+from app.modules.business.listing.models import Listing
+from app.modules.business.listing.types import (
     DATETIME_FORMAT,
     AuthorType,
     ProfessionalTemplateType,
     SimpleTemplateType,
     StyleType,
 )
-from app.modules.business.listing.models import Listing
-from app.modules.business.listing.templates import calculate_weight, select_template
 from tests.factories import build_test_settings
 
 

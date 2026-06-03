@@ -11,15 +11,28 @@ from __future__ import annotations
 
 import random
 from collections import Counter
+from collections.abc import Sequence
 
 from app.core.config import Settings
-from app.modules.business.listing.config import (
+from app.modules.business.listing.models import Listing
+from app.modules.business.listing.types import (
     ProfessionalTemplateType,
     SimpleTemplateType,
     StyleType,
     TemplateResponse,
 )
-from app.modules.business.listing.models import Listing
+
+TemplateId = ProfessionalTemplateType | SimpleTemplateType | str | None
+
+
+def _templates_for_style(
+    style: StyleType,
+) -> list[ProfessionalTemplateType] | list[SimpleTemplateType]:
+    if style == StyleType.PROFESSIONAL:
+        return list(ProfessionalTemplateType)
+    if style == StyleType.SIMPLE:
+        return list(SimpleTemplateType)
+    raise ValueError(f"Invalid style: {style}")
 
 
 def calculate_weight(
@@ -37,25 +50,20 @@ def calculate_weight(
     return template_value, 1.0
 
 
-def select_template(
-    listings: list[Listing],
+def select_template_from_ids(
+    template_ids: Sequence[TemplateId],
     style: StyleType,
     settings: Settings,
 ) -> TemplateResponse:
-    if style == StyleType.PROFESSIONAL:
-        templates: list = list(ProfessionalTemplateType)
-    elif style == StyleType.SIMPLE:
-        templates = list(SimpleTemplateType)
-    else:
-        raise ValueError(f"Invalid style: {style}")
+    templates = _templates_for_style(style)
 
     if len(templates) == 1:
         return TemplateResponse(selected_template=templates[0])
 
-    if not listings or listings[0].template_id is None:
+    if not template_ids or template_ids[0] is None:
         return TemplateResponse(selected_template=random.choice(templates))
 
-    template_usage = Counter(listing.template_id for listing in listings)
+    template_usage = Counter(template_ids)
     last_used = [template for template, _ in template_usage.most_common(2)]
 
     weighted = [
@@ -69,3 +77,15 @@ def select_template(
     normalized = [weight / total for weight in weights]
     selected = random.choices(values, weights=normalized, k=1)[0]
     return TemplateResponse(selected_template=selected)
+
+
+def select_template(
+    listings: list[Listing],
+    style: StyleType,
+    settings: Settings,
+) -> TemplateResponse:
+    return select_template_from_ids(
+        [listing.template_id for listing in listings],
+        style,
+        settings,
+    )

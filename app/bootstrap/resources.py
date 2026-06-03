@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
@@ -58,10 +58,6 @@ class ApplicationResources:
     idempotency_store: IdempotencyStore | None = None
     objects: ObjectGateway | None = None
     mongo: MongoGateway | None = None
-    listing_http_client: Any = None
-    listing_chat_model: Any = None
-    listing_tracker: Any = None
-    listing_prompt_provider: Any = None
     quota: QuotaService | None = None
     outbox_store: OutboxStore | None = None
     principal_rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
@@ -70,6 +66,7 @@ class ApplicationResources:
     webhook_signer: WebhookSigner | None = None
     webhook_dispatcher: HttpWebhookDispatcher | None = None
     webhook_retry_policy: RetryPolicy | None = None
+    services: dict[str, object] = field(default_factory=dict)
     # Lifecycle bookkeeping (close in reverse)
     addons: list[BootstrapAddon] = field(default_factory=list)
 
@@ -93,12 +90,12 @@ async def open_application_resources(
         _open_queue(resources, settings)
         _open_tasks(resources, settings)
 
-    _install_health_service(app, resources, init_resources=init_resources)
-
     for addon in addons:
         if addon.is_enabled(settings):
             await addon.open(app, resources, settings)
             resources.addons.append(addon)
+
+    _install_health_service(app, resources, init_resources=init_resources)
 
     return resources
 
@@ -179,6 +176,10 @@ def _build_dependency_checks(
         )
     if resources.redis is not None:
         checks.append(("redis", partial(check_redis_connection, resources.redis)))
+    if resources.mongo is not None:
+        from app.modules.platform.mongo.factory import check_mongo_connection
+
+        checks.append(("mongo", partial(check_mongo_connection, resources.mongo)))
     return tuple(checks)
 
 

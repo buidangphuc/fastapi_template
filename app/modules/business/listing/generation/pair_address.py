@@ -13,14 +13,20 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from loguru import logger
 
 from app.core.config import Settings
-from app.modules.business.listing import prompt_builders as prompts
-from app.modules.business.listing.config import (
+from app.modules.business.listing.generation import prompt_builders as prompts
+from app.modules.business.listing.generation.description import Content
+from app.modules.business.listing.generation.prompt import (
+    OpenAIPromptTemplate,
+    PromptSectionTemplate,
+)
+from app.modules.business.listing.schemas import PairAddressParams
+from app.modules.business.listing.types import (
     AddressVersionType,
     LanguageType,
     ParamLangMap,
@@ -29,12 +35,6 @@ from app.modules.business.listing.config import (
     StyleType,
     ToneType,
 )
-from app.modules.business.listing.handlers.description import Content
-from app.modules.business.listing.prompt import (
-    OpenAIPromptTemplate,
-    PromptSectionTemplate,
-)
-from app.modules.business.listing.schemas import PairAddressParams
 
 _ADDRESS_PREFIX_RE = re.compile(
     r"(?<![\w])(Đường|Phố|Phường|Quận|Huyện|Xã|Tỉnh|Thành phố|Thị xã|Thị trấn)(?=[\s,]|$)",
@@ -368,7 +368,7 @@ class PairAddressGenerator:
             result = await structured.ainvoke(
                 prompt.to_api_message(), config=self._trace_config
             )
-            content_out = result["parsed"]
+            content_out = cast(Content, result["parsed"])
             raw = result.get("raw")
             if len(content_out.get_title()) <= _MAX_TITLE_LENGTH:
                 title_ok = True
@@ -381,6 +381,9 @@ class PairAddressGenerator:
             content_out.title.output = self._build_fallback_title(
                 params, params_dict, address_version
             )
+
+        if content_out is None:
+            raise RuntimeError("Pair-address generator returned no parsed content")
 
         content_out.insert_contact(
             contact_name=params.contact_name,

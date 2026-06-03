@@ -121,6 +121,46 @@ class MemoryQuotaStore:
             counter.reset_at = query.reset_at
             return _usage_from_counter(counter)
 
+    async def reset_usage(self, query: QuotaUsageQuery) -> QuotaUsage:
+        self._ensure_open()
+        async with self._lock:
+            self._counters = {
+                key: counter
+                for key, counter in self._counters.items()
+                if key[0] != query.subject_id or key[1] != query.resource
+            }
+            self._reservations = {
+                reservation_id: reservation
+                for reservation_id, reservation in self._reservations.items()
+                if reservation.subject_id != query.subject_id
+                or reservation.resource != query.resource
+            }
+            self._idempotency = {
+                key: reservation_id
+                for key, reservation_id in self._idempotency.items()
+                if key[0] != query.subject_id or key[1] != query.resource
+            }
+            return _usage_from_query(query)
+
+    async def reset_resource(self, resource: str) -> None:
+        self._ensure_open()
+        async with self._lock:
+            self._counters = {
+                key: counter
+                for key, counter in self._counters.items()
+                if key[1] != resource
+            }
+            self._reservations = {
+                reservation_id: reservation
+                for reservation_id, reservation in self._reservations.items()
+                if reservation.resource != resource
+            }
+            self._idempotency = {
+                key: reservation_id
+                for key, reservation_id in self._idempotency.items()
+                if key[1] != resource
+            }
+
     async def close(self) -> None:
         self._closed = True
         self._counters.clear()
@@ -171,4 +211,16 @@ def _usage_from_counter(counter: _Counter) -> QuotaUsage:
         limit=limit,
         remaining=max(limit - used, 0),
         reset_at=counter.reset_at,
+    )
+
+
+def _usage_from_query(query: QuotaUsageQuery) -> QuotaUsage:
+    return QuotaUsage(
+        subject_id=query.subject_id,
+        resource=query.resource,
+        window_key=query.window_key,
+        used=0,
+        limit=query.limit,
+        remaining=query.limit,
+        reset_at=query.reset_at,
     )

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.core.config import Settings
     from app.core.health import HealthService
     from app.core.middleware import InFlightTracker
+    from app.modules.platform.mongo.gateway import MongoGateway
     from app.modules.platform.quota.service import QuotaService
 
 T = TypeVar("T")
@@ -38,6 +39,28 @@ def get_quota_service(app: FastAPI) -> QuotaService:
         code="quota_not_configured",
         message="Quota service is not configured",
     )
+
+
+def get_mongo_gateway(app: FastAPI) -> MongoGateway:
+    return require(
+        get_app_resources(app).mongo,
+        code="mongo_not_configured",
+        message="MongoDB is not configured",
+    )
+
+
+def get_service_resource(app: FastAPI, key: str, expected_type: type[T]) -> T:
+    value = require(
+        get_app_resources(app).services.get(key),
+        code=f"{key}_not_configured",
+        message=f"{key} service is not configured",
+    )
+    if not isinstance(value, expected_type):
+        raise ServiceUnavailableError(
+            code=f"{key}_misconfigured",
+            message=f"{key} service is misconfigured",
+        )
+    return value
 
 
 def require(value: T | None, *, code: str, message: str) -> T:

@@ -2,20 +2,20 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.modules.business.listing.config import (
-    LanguageType,
-    ProfessionalTemplateType,
-    SimpleTemplateType,
-    StyleType,
-    ToneType,
-)
-from app.modules.business.listing.handlers.description import (
+from app.modules.business.listing.generation.description import (
     Content,
     Description,
     DescriptionGenerator,
     Title,
 )
 from app.modules.business.listing.schemas import AllParams
+from app.modules.business.listing.types import (
+    LanguageType,
+    ProfessionalTemplateType,
+    SimpleTemplateType,
+    StyleType,
+    ToneType,
+)
 from tests.factories import build_test_settings
 
 

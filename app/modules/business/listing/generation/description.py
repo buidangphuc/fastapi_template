@@ -17,8 +17,13 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from app.core.config import Settings
-from app.modules.business.listing import prompt_builders as prompts
-from app.modules.business.listing.config import (
+from app.modules.business.listing.generation import prompt_builders as prompts
+from app.modules.business.listing.generation.prompt import (
+    OpenAIPromptTemplate,
+    PromptSectionTemplate,
+)
+from app.modules.business.listing.schemas import AllParams
+from app.modules.business.listing.types import (
     AddressVersionType,
     LanguageType,
     ParamLangMap,
@@ -27,11 +32,6 @@ from app.modules.business.listing.config import (
     StyleType,
     ToneType,
 )
-from app.modules.business.listing.prompt import (
-    OpenAIPromptTemplate,
-    PromptSectionTemplate,
-)
-from app.modules.business.listing.schemas import AllParams
 
 PROMPT_VERSION = "listing-description-2026-06-02"
 

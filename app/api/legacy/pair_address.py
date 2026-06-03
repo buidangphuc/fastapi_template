@@ -4,117 +4,62 @@ bds-genai-dgl core/generator/api/v1/pair_address.py).
 Mounted under the `/description` prefix in ``app/api/legacy/router.py`` so the
 full path matches legacy byte-for-byte (`/api/v1/description/pair_address`).
 
-Same flow as `/description` but with the pair-address generator and
-`PairAddressParams`/`PairAddressDescriptionResponse`. Uses the shared listing
-quota reservation flow and submit helper.
+Same flow as `/description` but with the pair-address use-case and
+`PairAddressParams`/`PairAddressDescriptionResponse`.
 """
 
 from __future__ import annotations
 
 import traceback
-from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from loguru import logger
 
-from app.api.legacy.deps import (
-    get_listing_quota_service,
-    get_listing_store,
-    get_pair_address_generator,
-)
-from app.api.legacy.description import _submit_listing
-from app.api.legacy.response import ResponseModel, response_base
-from app.bootstrap.state import get_app_settings
-from app.modules.business.listing.config import (
-    DATETIME_FORMAT,
-    AddressVersionType,
-    AuthorType,
-    LanguageType,
-    StyleType,
-    ToneType,
-)
-from app.modules.business.listing.handlers.pair_address import PairAddressGenerator
-from app.modules.business.listing.models import Listing
+from app.api.legacy.listing_dependencies import get_listing_service
+from app.api.legacy.response import LegacyResponseModel, legacy_response
+from app.core.errors import RateLimitError
 from app.modules.business.listing.schemas import (
     PairAddressDescriptionResponse,
     PairAddressParams,
 )
-from app.modules.business.listing.services.listing_store import ListingStore
-from app.modules.business.listing.services.quota import ListingQuotaService
-from app.modules.business.listing.templates import select_template
+from app.modules.business.listing.services.listing import ListingService
+from app.modules.business.listing.types import (
+    AddressVersionType,
+    StyleType,
+)
 
 router = APIRouter()
 
 
 @router.post("/pair_address", summary="Generate Pair Address Description")
 async def generate_pair_address_description(
-    request: Request,
-    background_tasks: BackgroundTasks,
     params: PairAddressParams,
     user_id: str = Query(description="User ID"),
     listing_id: str = Query(description="Listing ID"),
     style: StyleType = Query(description="Style"),
     address_version: AddressVersionType = Query(default=AddressVersionType.OLD),
-    generator: PairAddressGenerator = Depends(get_pair_address_generator),
-    quota: ListingQuotaService = Depends(get_listing_quota_service),
-    store: ListingStore = Depends(get_listing_store),
-) -> ResponseModel:
-    quota_reservation = await quota.reserve(user_id)
-    quota_finalized = False
+    service: ListingService = Depends(get_listing_service),
+) -> LegacyResponseModel:
     try:
-        tone = ToneType.SIMPLE if style == StyleType.SIMPLE else ToneType.PROFESSIONAL
-        last_ai_listing = await store.get_last_listing_by_ai(
-            user_id=user_id, style=style, num_listing=2
-        )
-        template_response = select_template(
-            last_ai_listing or [], style, get_app_settings(request.app)
-        )
-        data = await generator.agenerate(
-            language=LanguageType.VI,
-            tone=tone,
+        generated = await service.generate_pair_address(
+            user_id=user_id,
+            listing_id=listing_id,
             style=style,
             params=params,
-            template_id=template_response.selected_template,
             address_version=address_version,
         )
 
-        listing = Listing(
-            user_id=user_id,
-            listing_id=listing_id,
-            description=data["description"],
-            title=data["title"],
-            style=style,
-            prompt=data["prompt"],
-            author=AuthorType.AI,
-            created_date=datetime.now().strftime(DATETIME_FORMAT),
-            template_id=template_response.selected_template,
-            prompt_tokens=data["tokens"]["usage"]["prompt_tokens"],
-            completion_tokens=data["tokens"]["usage"]["completion_tokens"],
-            generating_time=data["generating_time"],
-            llm_model_name=data["llm_model_name"],
-            user_input=params.model_dump_json(),
-            platform=params.platform,
-            version=get_app_settings(request.app).VERSION,
-            prompt_version=data.get("prompt_version"),
-        )
-        background_tasks.add_task(_submit_listing, store, listing)
-        usage_response = await quota.finalize(quota_reservation)
-        quota_finalized = True
-
-        return await response_base.success(
+        return await legacy_response.success(
             data=PairAddressDescriptionResponse(
-                title=data["title"],
-                description=data["description"],
-                usage=usage_response,
+                title=generated.title,
+                description=generated.description,
+                usage=generated.usage,
             )
         )
+    except RateLimitError:
+        raise
     except Exception:
-        if not quota_finalized:
-            try:
-                await quota.refund(quota_reservation)
-            except Exception:
-                logger.error(f"Error refunding quota: {traceback.format_exc()}")
         logger.error(
             f"Error generating pair-address description: {traceback.format_exc()}"
         )
-        return await response_base.fail()
+        return await legacy_response.fail()

@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.modules.business.listing.config import (
+from app.modules.business.listing.types import (
     AreaUnitType,
     GoalTypeVN,
     PlatformType,

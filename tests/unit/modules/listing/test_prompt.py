@@ -1,4 +1,4 @@
-from app.modules.business.listing.prompt import (
+from app.modules.business.listing.generation.prompt import (
     OpenAIPromptTemplate,
     PromptSectionTemplate,
 )

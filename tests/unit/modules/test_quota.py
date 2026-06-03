@@ -118,6 +118,33 @@ async def test_quota_uses_new_capacity_after_window_rollover():
     assert reservation.usage.used == 1
 
 
+async def test_quota_reset_usage_clears_subject_resource_only():
+    service, _ = _service(limit=3)
+    await service.reserve(subject_id="u1", resource=RESOURCE)
+    await service.reserve(subject_id="u2", resource=RESOURCE)
+
+    reset_usage = await service.reset_usage(subject_id="u1", resource=RESOURCE)
+    u1 = await service.get_usage(subject_id="u1", resource=RESOURCE)
+    u2 = await service.get_usage(subject_id="u2", resource=RESOURCE)
+
+    assert reset_usage.used == 0
+    assert u1.used == 0
+    assert u2.used == 1
+
+
+async def test_quota_reset_resource_clears_all_subjects():
+    service, _ = _service(limit=3)
+    await service.reserve(subject_id="u1", resource=RESOURCE)
+    await service.reserve(subject_id="u2", resource=RESOURCE)
+
+    await service.reset_resource(RESOURCE)
+    u1 = await service.get_usage(subject_id="u1", resource=RESOURCE)
+    u2 = await service.get_usage(subject_id="u2", resource=RESOURCE)
+
+    assert u1.used == 0
+    assert u2.used == 0
+
+
 async def test_quota_accepts_explicit_policy_without_policy_store_entry():
     clock = MutableClock(datetime(2026, 1, 1, tzinfo=UTC))
     service = QuotaService(
