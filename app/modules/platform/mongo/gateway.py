@@ -1,10 +1,4 @@
-"""Thin async wrapper over a motor client scoped to one database.
-
-Lifespan-managed by ``MongoAddon``; never construct at import time (this is the
-explicit replacement for the legacy import-time ``mongo_client`` singleton).
-Motor types are intentionally ``Any`` so the platform type-checks without the
-optional ``motor`` dependency installed.
-"""
+"""Thin async wrapper over a Motor client scoped to one database."""
 
 from __future__ import annotations
 
@@ -31,5 +25,5 @@ class MongoGateway:
         return await self._client.admin.command("ping")
 
     async def close(self) -> None:
-        # motor's AsyncIOMotorClient.close() is synchronous.
+        # Motor's AsyncIOMotorClient.close() is synchronous.
         self._client.close()

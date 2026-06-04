@@ -139,7 +139,10 @@ class ApplicationServicesAddon:
     name = "application_services"
 
     def is_enabled(self, settings: Settings) -> bool:
-        return settings.MONGO_ENABLED
+        # The listing runtime needs BOTH the Mongo store and the quota service,
+        # so only compose it when both are enabled (gating on MONGO alone would
+        # half-open and fail when QUOTA is off).
+        return settings.MONGO_ENABLED and settings.QUOTA_ENABLED
 
     async def open(
         self,
