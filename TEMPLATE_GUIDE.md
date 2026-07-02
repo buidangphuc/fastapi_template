@@ -63,6 +63,12 @@ and include your router in `app/api/router.py` gated on your flag. The
 `completions` surface is the living reference for the thin-transport shape;
 its handler is injected via `create_app(completion_handler=...)`.
 
+> **Deliberate: no structured-output enforcement at the transport.** The
+> completions contract serves both sync and streaming, and schema validation
+> needs the complete output — enforcing it would break the stream path.
+> A product that needs guaranteed JSON applies `with_structured_output` on
+> its own sync endpoint only.
+
 Rules that keep the template clean (enforced by review, spelled out in
 `.agents/`): endpoints never build clients/stores; business services never
 read `Request`/`app.state`; touch bootstrap only for app-lifetime resources.
