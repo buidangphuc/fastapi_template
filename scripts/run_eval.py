@@ -1,51 +1,113 @@
-"""Generic local eval smoke runner."""
+"""Eval gate for the completions surface.
+
+Runs the JSONL dataset against the real CompletionPipeline (echo handler by
+default — swap in your product handler when you fork) and FAILS (exit != 0)
+when the pass rate drops below --min-score.
+
+Per-case evaluator selection via metadata.evaluator: exact | contains |
+judge. Judge cases need JUDGE_CHAT_MODEL (+ the [ai] extra); without it they
+are SKIPPED so the gate stays hermetic in CI.
+
+    python -m scripts.run_eval                    # default dataset + 0.8 gate
+    python -m scripts.run_eval --cases evals/x.jsonl --min-score 0.9
+"""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
 import json
-from typing import Any
 
-from app.modules.ai.evals.evaluators import ContainsEvaluator, ExactMatchEvaluator
+from app.core.config import get_settings
+from app.modules.ai.evals.evaluators import (
+    ContainsEvaluator,
+    Evaluator,
+    ExactMatchEvaluator,
+    build_llm_judge,
+)
 from app.modules.ai.evals.runner import (
     EvalCase,
     EvalTargetResult,
+    evaluate_one,
     load_jsonl_cases,
-    run_eval_cases,
 )
+from app.modules.business.completions.handlers.echo import EchoCompletionHandler
+from app.modules.business.completions.pipeline import CompletionPipeline
+from app.modules.business.completions.schemas import CompletionRequest
+
+DEFAULT_CASES = "evals/completions_smoke.jsonl"
+
+# The eval target — swap the handler for your product's when you fork.
+_pipeline = CompletionPipeline(EchoCompletionHandler())
 
 
-async def _echo_target(case: EvalCase) -> EvalTargetResult:
-    return EvalTargetResult(output=case.input)
+async def _target(case: EvalCase) -> EvalTargetResult:
+    result = await _pipeline.complete(CompletionRequest(**case.input))
+    return EvalTargetResult(output=result.content)
 
 
-def _default_cases() -> list[EvalCase]:
-    return [
-        EvalCase(id="exact", input="hello", expected="hello"),
-        EvalCase(id="contains", input="hello world", expected="world"),
-    ]
-
-
-async def _run(args: argparse.Namespace) -> dict[str, Any]:
-    cases = load_jsonl_cases(args.cases) if args.cases else _default_cases()
-    report = await run_eval_cases(
-        cases,
-        target=_echo_target,
-        evaluators=[ExactMatchEvaluator(), ContainsEvaluator()],
-    )
+def _build_evaluators() -> dict[str, Evaluator | None]:
+    settings = get_settings()
+    judge: Evaluator | None = None
+    if settings.JUDGE_CHAT_MODEL:
+        judge = build_llm_judge(settings)
     return {
-        "total_cases": report.total_cases,
-        "total_scores": report.total_scores,
-        "passed_scores": report.passed_scores,
+        "exact": ExactMatchEvaluator(),
+        "contains": ContainsEvaluator(),
+        "judge": judge,
     }
 
 
-def main() -> None:
+async def _run(args: argparse.Namespace) -> int:
+    cases = load_jsonl_cases(args.cases)
+    evaluators = _build_evaluators()
+
+    scored = passed = skipped = 0
+    failures: list[str] = []
+    for case in cases:
+        kind = case.metadata.get("evaluator", "exact")
+        evaluator = evaluators.get(kind)
+        if evaluator is None:
+            skipped += 1
+            continue
+        target_result = await _target(case)
+        scores = await evaluate_one(
+            output=target_result.output,
+            expected=case.expected,
+            evaluators=[evaluator],
+        )
+        for score in scores:
+            scored += 1
+            if score.passed:
+                passed += 1
+            else:
+                failures.append(f"{case.id} [{score.name}] {score.comment or ''}")
+
+    rate = (passed / scored) if scored else 0.0
+    print(
+        json.dumps(
+            {
+                "cases": len(cases),
+                "scored": scored,
+                "passed": passed,
+                "skipped_judge": skipped,
+                "pass_rate": round(rate, 4),
+                "min_score": args.min_score,
+                "failures": failures,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+    )
+    return 0 if rate >= args.min_score else 1
+
+
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cases", default="")
-    args = parser.parse_args()
-    print(json.dumps(asyncio.run(_run(args)), sort_keys=True))
+    parser.add_argument("--cases", default=DEFAULT_CASES)
+    parser.add_argument("--min-score", type=float, default=0.8)
+    args = parser.parse_args(argv)
+    raise SystemExit(asyncio.run(_run(args)))
 
 
 if __name__ == "__main__":

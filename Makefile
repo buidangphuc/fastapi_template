@@ -1,4 +1,4 @@
-.PHONY: help dev test lint format typecheck check ci hooks-install \
+.PHONY: help dev test eval lint format typecheck check ci hooks-install \
         migrate migration-new migrate-down \
         smoke-langfuse smoke-langfuse-prompt \
         docker-build docker-run docker-run-langfuse
@@ -20,6 +20,9 @@ worker: ## Run async task worker
 
 test: ## Run pytest
 	$(UV_RUN) pytest -v
+
+eval: ## Run the eval gate (deterministic cases; judge cases need JUDGE_CHAT_MODEL)
+	$(UV_RUN) python -m scripts.run_eval --min-score 0.8
 
 test-fast: ## Run pytest in parallel via pytest-xdist
 	$(UV_RUN) pytest -n auto
