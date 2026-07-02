@@ -46,8 +46,8 @@ async def _target(case: EvalCase) -> EvalTargetResult:
     return EvalTargetResult(output=result.content)
 
 
-def _build_evaluators() -> dict[str, Evaluator | None]:
-    settings = get_settings()
+def _build_evaluators(settings=None) -> dict[str, Evaluator | None]:
+    settings = settings or get_settings()
     judge: Evaluator | None = None
     if settings.JUDGE_CHAT_MODEL:
         judge = build_llm_judge(settings)
@@ -58,9 +58,9 @@ def _build_evaluators() -> dict[str, Evaluator | None]:
     }
 
 
-async def _run(args: argparse.Namespace) -> int:
+async def _run(args: argparse.Namespace, settings=None) -> int:
     cases = load_jsonl_cases(args.cases)
-    evaluators = _build_evaluators()
+    evaluators = _build_evaluators(settings)
 
     scored = passed = skipped = 0
     failures: list[str] = []
