@@ -5,7 +5,10 @@ auth + Swagger and opens **zero** addons. Every capability below is opt-in, so
 your product starts simple and grows only where it actually needs to.
 
 Architecture rules live in `.agents/fastapi-template-repo/` (SKILL.md +
-references/architecture.md) — read those before wiring anything.
+references/architecture.md) — read those before wiring anything. For
+LLM/RAG/eval work there is a second skill: `.agents/senior-ai-engineer/`
+(engineering judgment + the repo's AI patterns) — use it alongside, not
+instead of, the template skill.
 
 ## 0. Fork checklist
 
@@ -77,7 +80,20 @@ Dev installs everything: `uv sync --dev --all-extras` (what `make test` uses).
 A missing extra fails with an actionable message at the feature's entry point
 (see `app/modules/ai/_deps.py`), never at import/boot time.
 
-## 4. Verify as you go
+## 4. Test layout
+
+- `tests/unit/` — service/module behavior, no app boot needed.
+- `tests/integration/` — API contract tests driving the real app; opt-in
+  addons are enabled per test via settings overrides.
+- `tests/conftest.py` — fixtures: `test_settings` (safe test Settings),
+  `client` (ASGI test client, `init_resources=False`), `auth_headers`
+  (`Bearer test-token`).
+- `tests/factories.py` — `build_test_settings(**overrides)` is how every
+  test flips capability flags; `api_client_for(app)` for custom apps.
+- Fast loop: `make test-fast` (parallel) · one file:
+  `uv run --all-extras pytest tests/unit/... -q`.
+
+## 5. Verify as you go
 
 `make test` (full pytest) · `make lint` + `make typecheck` · `make dev` for
 the live server · `make docker-run` for the composed standard stack ·

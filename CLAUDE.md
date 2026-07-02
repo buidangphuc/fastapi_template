@@ -2,7 +2,7 @@
 
 ## Architecture: source of truth
 
-The architecture knowledge for this repo lives in the repo-local skills under `.agents/`. Read them before touching anything that involves understanding the repo, adding an endpoint/service, migrating legacy/DGL code, fixing wiring, or reviewing the platform/business/API boundary — they tell you where code lives and how it's wired, so you don't have to reverse-engineer it from scratch.
+The architecture knowledge for this repo lives in the repo-local skills under `.agents/`. Read them before touching anything that involves understanding the repo, adding an endpoint/service, migrating legacy code, fixing wiring, or reviewing the platform/business/API boundary — they tell you where code lives and how it's wired, so you don't have to reverse-engineer it from scratch.
 
 - Start with `.agents/fastapi-template-repo/SKILL.md` (where code lives, how wiring works).
 - Read `.agents/fastapi-template-repo/references/architecture.md` when the task touches bootstrap, platform capability, business service, API dependency adapter, or legacy migration.

@@ -22,7 +22,7 @@ Not allowed:
 
 Dependency adapters:
 
-- Put API-specific dependency adapters under the owning API surface, for example `app/api/legacy/listing_dependencies.py` or `app/api/v1/<surface>/dependencies.py`.
+- Put API-specific dependency adapters under the owning API surface, for example `app/api/v1/completions/dependencies.py` (the live reference) or `app/api/v1/<surface>/dependencies.py`.
 - Avoid generic `app/api/deps.py` files that become unrelated wiring dumps.
 
 ### Bootstrap Layer
