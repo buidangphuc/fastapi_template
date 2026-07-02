@@ -80,7 +80,31 @@ Dev installs everything: `uv sync --dev --all-extras` (what `make test` uses).
 A missing extra fails with an actionable message at the feature's entry point
 (see `app/modules/ai/_deps.py`), never at import/boot time.
 
-## 4. Test layout
+## 4. Observability (deliberately not shipped)
+
+The template ships **no metrics endpoint and no monitoring stack** — that's
+per-project by design. When your product needs it, the recipe is small:
+
+1. Request metrics: add a `/metrics` endpoint (stdlib text exposition or
+   `prometheus-fastapi-instrumentator`) behind your product's enable flag.
+2. Stack: a compose overlay with Prometheus (+ scrape config), Grafana
+   (provisioned datasource + dashboard), Loki+Promtail for logs,
+   Alertmanager for rules — layer it like `docker-compose.langfuse.yaml`.
+3. Container CPU/mem: add cadvisor; GPU needs nvidia-dcgm-exporter on a
+   GPU host.
+
+## 5. Serving a model behind the API
+
+The API never loads model weights — it calls a **model server** over HTTP
+via an `integrations/` client (duck-typed httpx client + settings). Any
+server with an HTTP contract works: an ONNX-runtime container (see the ML
+pipeline template's `Dockerfile.serve`), vLLM/TGI/llama.cpp for LLMs
+(OpenAI-compatible servers plug into the existing `[ai]` LangChain client
+via `base_url`), or a managed endpoint. Add it as a compose service —
+profile-gate it if it needs a GPU — and select the backend with a settings
+flag so the stub/fallback path keeps working without it.
+
+## 6. Test layout
 
 - `tests/unit/` — service/module behavior, no app boot needed.
 - `tests/integration/` — API contract tests driving the real app; opt-in
@@ -93,7 +117,7 @@ A missing extra fails with an actionable message at the feature's entry point
 - Fast loop: `make test-fast` (parallel) · one file:
   `uv run --all-extras pytest tests/unit/... -q`.
 
-## 5. Verify as you go
+## 7. Verify as you go
 
 `make test` (full pytest) · `make lint` + `make typecheck` · `make dev` for
 the live server · `make docker-run` for the composed standard stack ·
