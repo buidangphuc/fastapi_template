@@ -95,14 +95,29 @@ per-project by design. When your product needs it, the recipe is small:
 
 ## 5. Serving a model behind the API
 
-The API never loads model weights — it calls a **model server** over HTTP
-via an `integrations/` client (duck-typed httpx client + settings). Any
-server with an HTTP contract works: an ONNX-runtime container (see the ML
-pipeline template's `Dockerfile.serve`), vLLM/TGI/llama.cpp for LLMs
-(OpenAI-compatible servers plug into the existing `[ai]` LangChain client
-via `base_url`), or a managed endpoint. Add it as a compose service —
-profile-gate it if it needs a GPU — and select the backend with a settings
-flag so the stub/fallback path keeps working without it.
+The API never loads model weights — it calls a **model server** over HTTP.
+The ready-made half of that contract is
+`app/modules/platform/model_server/client.py`: `ModelServerClient`
+(predict + ping, unreachable → clean 503) speaks the ML pipeline template's
+serving image out of the box:
+
+```text
+POST /predict {"text": "..."}  -> {"label": "...", "score": 0.97}   (or texts:[...] batch)
+GET  /health · GET /metrics
+```
+
+Build the httpx client in your domain runtime
+(`build_httpx_model_server_client(settings.MY_MODEL_URL)`), own its close().
+Any HTTP model server fits: the ML template's `Dockerfile.serve` container,
+vLLM/TGI/llama.cpp for LLMs (OpenAI-compatible servers plug into the `[ai]`
+LangChain client via `base_url`), or a managed endpoint. Add it as a compose
+service — profile-gate it if it needs a GPU — and select the backend with a
+settings flag so a stub/fallback path keeps working without it.
+
+RAG storage scales the same way: `build_storage_context`/`build_embed_model`
+raise at the extension points — plug in LlamaIndex's ecosystem
+(`llama-index-vector-stores-qdrant`, `-postgres`, embedding providers)
+without touching the service.
 
 ## 6. Test layout
 
