@@ -12,7 +12,7 @@ class PlatformSettingsMixin(BaseModel):
     AUTH_ROLES: str = "admin"
 
     # Rate limit (2 layers: IP + principal)
-    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_ENABLED: bool = False
     RATE_LIMIT_BACKEND: str = "memory"
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, gt=0)
     RATE_LIMIT_REDIS_PREFIX: str = "rate-limit"

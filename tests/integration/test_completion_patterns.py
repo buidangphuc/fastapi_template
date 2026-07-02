@@ -121,6 +121,9 @@ async def test_stream_completion_calls_injected_handler(test_settings: Settings)
 async def test_task_completion_submit_and_poll(test_settings: Settings):
     settings = test_settings.model_copy(
         update={
+            # Async tasks are opt-in on the template — enable the stack here.
+            "QUEUE_ENABLED": True,
+            "TASKS_ENABLED": True,
             "QUEUE_BACKEND": "memory",
             "TASK_STORE_BACKEND": "memory",
         }

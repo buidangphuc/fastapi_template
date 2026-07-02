@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, computed_field
 
 
 class InfraSettingsMixin(BaseModel):
-    DATABASE_ENABLED: bool = True
+    DATABASE_ENABLED: bool = False
     POSTGRES_HOST: str
     POSTGRES_PORT: int = Field(default=5432, gt=0, lt=65_536)
     POSTGRES_USER: str
@@ -17,7 +17,7 @@ class InfraSettingsMixin(BaseModel):
     DB_POOL_TIMEOUT_SECONDS: int = Field(default=30, gt=0)
     DB_POOL_RECYCLE_SECONDS: int = Field(default=1800, gt=0)
 
-    REDIS_ENABLED: bool = True
+    REDIS_ENABLED: bool = False
     REDIS_HOST: str
     REDIS_PORT: int = Field(default=6379, gt=0, lt=65_536)
     REDIS_PASSWORD: str = ""

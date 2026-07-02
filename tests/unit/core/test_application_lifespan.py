@@ -213,7 +213,16 @@ async def test_app_lifespan_owns_database_and_redis_resources(
         raising=False,
     )
 
-    app = create_app(settings=test_settings, init_resources=True)
+    stack_settings = test_settings.model_copy(
+        update={
+            # This test exercises the opt-in infra stack — enable it.
+            "DATABASE_ENABLED": True,
+            "REDIS_ENABLED": True,
+            "QUEUE_ENABLED": True,
+            "TASKS_ENABLED": True,
+        }
+    )
+    app = create_app(settings=stack_settings, init_resources=True)
     resources_before = app.state.resources
 
     assert resources_before.engine is None
@@ -377,6 +386,7 @@ async def test_app_lifespan_fails_fast_when_redis_queue_backend_has_no_redis(
 ):
     settings = test_settings.model_copy(
         update={
+            "QUEUE_ENABLED": True,
             "REDIS_ENABLED": False,
             "QUEUE_BACKEND": "redis",
         }
@@ -395,6 +405,8 @@ async def test_app_lifespan_fails_fast_when_postgres_task_store_has_no_database(
 ):
     settings = test_settings.model_copy(
         update={
+            "QUEUE_ENABLED": True,
+            "TASKS_ENABLED": True,
             "DATABASE_ENABLED": False,
             "TASK_STORE_BACKEND": "postgres",
         }
@@ -414,6 +426,7 @@ async def test_app_lifespan_fails_fast_when_postgres_task_store_has_no_database(
     [
         (
             {
+                "RATE_LIMIT_ENABLED": True,
                 "REDIS_ENABLED": False,
                 "RATE_LIMIT_BACKEND": "redis",
             },

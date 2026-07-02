@@ -243,12 +243,20 @@ def test_redis_rate_limiter_requires_redis_client():
         build_principal_rate_limiter(_settings(RATE_LIMIT_BACKEND="redis"))
 
 
-async def test_rate_limit_addon_attaches_both_limiters_by_default():
+async def test_rate_limit_addon_attaches_both_limiters_when_enabled():
     app = FastAPI()
     resources = ApplicationResources(redis=FakeRedis())
     addon = RateLimitAddon()
 
-    await addon.open(app, resources, _settings(RATE_LIMIT_BACKEND="redis"))
+    await addon.open(
+        app,
+        resources,
+        _settings(
+            RATE_LIMIT_ENABLED=True,
+            REDIS_ENABLED=True,
+            RATE_LIMIT_BACKEND="redis",
+        ),
+    )
 
     assert isinstance(resources.principal_rate_limiter, RedisRateLimiter)
     assert isinstance(resources.ip_rate_limiter, RedisRateLimiter)

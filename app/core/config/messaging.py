@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class MessagingSettingsMixin(BaseModel):
     # Queue gateway
-    QUEUE_ENABLED: bool = True
+    QUEUE_ENABLED: bool = False
     QUEUE_BACKEND: str = "memory"
     QUEUE_NAME: str = "completions"
     SQS_QUEUE_URL: str = ""
@@ -17,7 +17,7 @@ class MessagingSettingsMixin(BaseModel):
     RABBITMQ_URL: str = ""
 
     # Async task store + service
-    TASKS_ENABLED: bool = True
+    TASKS_ENABLED: bool = False
     TASK_STORE_BACKEND: str = "memory"
     TASK_REDIS_PREFIX: str = "tasks"
     TASK_TTL_SECONDS: int = Field(default=86_400, gt=0)
