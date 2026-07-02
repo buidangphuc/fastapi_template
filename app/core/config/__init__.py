@@ -23,10 +23,8 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.config.ai import AISettingsMixin
-from app.core.config.generator import GeneratorSettingsMixin
 from app.core.config.http import HttpSettingsMixin
 from app.core.config.infra import InfraSettingsMixin
-from app.core.config.listing import ListingSettingsMixin
 from app.core.config.messaging import MessagingSettingsMixin
 from app.core.config.mongo import MongoSettingsMixin
 from app.core.config.platform import PlatformSettingsMixin
@@ -52,8 +50,6 @@ class Settings(
     HttpSettingsMixin,
     InfraSettingsMixin,
     MongoSettingsMixin,
-    ListingSettingsMixin,
-    GeneratorSettingsMixin,
     AISettingsMixin,
     MessagingSettingsMixin,
     PlatformSettingsMixin,

@@ -26,7 +26,6 @@ class BootstrapAddon(Protocol):
 
 
 def default_resource_addons() -> tuple[BootstrapAddon, ...]:
-    from app.bootstrap.services import ApplicationServicesAddon
     from app.modules.ai.rag.factory import RagAddon
     from app.modules.messaging.outbox.factory import OutboxAddon
     from app.modules.messaging.webhooks.factory import WebhookAddon
@@ -44,7 +43,6 @@ def default_resource_addons() -> tuple[BootstrapAddon, ...]:
         ObjectAddon(),
         MongoAddon(),
         QuotaAddon(),
-        ApplicationServicesAddon(),
         OutboxAddon(),
         WebhookAddon(),
         RagAddon(),
