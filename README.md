@@ -32,6 +32,16 @@ Deployment pipelines are intentionally out of scope. Each team or client environ
 - uv
 - Docker and Docker Compose for local container checks
 
+## Minimal core & opt-in capabilities
+
+A fresh boot opens **zero addons**: app factory, bearer auth, health probes,
+and Swagger only — no database, redis, queue, or AI packages required. Every
+capability (Postgres, Redis, queue+tasks, rate limit, cache, objects, Mongo,
+idempotency, outbox, webhooks, quota) is enabled by its `*_ENABLED` flag, and
+the LLM/RAG/tracing stack installs separately via the `ai` extra
+(`uv sync --extra ai`). See [TEMPLATE_GUIDE.md](TEMPLATE_GUIDE.md) for the
+fork checklist and the add-a-domain walkthrough.
+
 ## Quickstart
 
 ```bash
