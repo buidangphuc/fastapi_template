@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from langchain_core.language_models.chat_models import BaseChatModel
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.core.config import Settings
 from app.modules.ai.llm.langfuse import (
@@ -9,6 +10,9 @@ from app.modules.ai.llm.langfuse import (
     build_langfuse_tracker,
 )
 from app.modules.ai.llm.router import ModelBuilder, ModelRouter
+
+if TYPE_CHECKING:
+    from langchain_core.language_models.chat_models import BaseChatModel
 
 
 @dataclass(frozen=True)

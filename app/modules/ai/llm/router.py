@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Literal
-
-from langchain.chat_models import init_chat_model
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from typing import TYPE_CHECKING, Literal
 
 from app.core.config import Settings
 from app.core.resilience import CircuitBreaker, CircuitBreakerPolicy
+from app.modules.ai._deps import require_langchain
+
+if TYPE_CHECKING:
+    from langchain_core.language_models.chat_models import BaseChatModel
 
 ModelRole = Literal["default", "judge"]
-ModelBuilder = Callable[[str], BaseChatModel]
+ModelBuilder = Callable[[str], "BaseChatModel"]
 DEFAULT_PRIMARY_4XX_THRESHOLD = 3
+
+
+def _default_model_builder(target: str) -> BaseChatModel:
+    """LangChain's provider-routing builder — imported lazily so the module
+    stays importable without the ``[ai]`` extra."""
+    require_langchain()
+    from langchain.chat_models import init_chat_model
+
+    return init_chat_model(target)
 
 
 class ModelRouter:
@@ -31,7 +40,7 @@ class ModelRouter:
         breaker_policy: CircuitBreakerPolicy | None = None,
     ) -> None:
         self.settings = settings
-        self.model_builder = model_builder or init_chat_model
+        self.model_builder = model_builder or _default_model_builder
         self.breaker_policy = breaker_policy or CircuitBreakerPolicy(
             failure_threshold=DEFAULT_PRIMARY_4XX_THRESHOLD,
             failure_status_range=range(400, 500),
@@ -41,6 +50,11 @@ class ModelRouter:
     def chat_model(self, role: ModelRole = "default") -> BaseChatModel:
         target = self.current_target(role)
         if not target:
+            require_langchain()
+            from langchain_core.language_models.fake_chat_models import (
+                FakeListChatModel,
+            )
+
             return FakeListChatModel(responses=["fake response"])
         return self.model_builder(target)
 

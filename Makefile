@@ -5,37 +5,40 @@
 
 UV_CACHE_DIR ?= .uv-cache
 UV := PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=$(UV_CACHE_DIR) uv
+# Dev/test run with every optional extra installed ([ai], [aws], [mongo], ...).
+# Production installs pick extras explicitly: `uv sync --extra ai` etc.
+UV_RUN := $(UV) run --all-extras
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 dev: ## Run dev server with autoreload
-	$(UV) run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	$(UV_RUN) uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 worker: ## Run async task worker
-	$(UV) run python -m scripts.run_worker
+	$(UV_RUN) python -m scripts.run_worker
 
 test: ## Run pytest
-	$(UV) run pytest -v
+	$(UV_RUN) pytest -v
 
 test-fast: ## Run pytest in parallel via pytest-xdist
-	$(UV) run pytest -n auto
+	$(UV_RUN) pytest -n auto
 
 lint: ## Ruff lint
-	$(UV) run ruff check .
+	$(UV_RUN) ruff check .
 
 format: ## Ruff format
-	$(UV) run ruff format .
+	$(UV_RUN) ruff format .
 
 check: ## Ruff lint + format check (no auto-fix)
-	$(UV) run ruff check .
-	$(UV) run ruff format --check .
+	$(UV_RUN) ruff check .
+	$(UV_RUN) ruff format --check .
 
 check-env: ## Verify .env.example matches Settings fields
-	$(UV) run python -m scripts.check_env_example
+	$(UV_RUN) python -m scripts.check_env_example
 
 typecheck: ## Pyright type check
-	$(UV) run pyright
+	$(UV_RUN) pyright
 
 ci: check check-env typecheck test ## Full CI suite locally
 
@@ -52,10 +55,10 @@ migrate-down: ## Revert last alembic migration
 	$(UV) run alembic downgrade -1
 
 smoke-langfuse: ## Run Langfuse callback smoke
-	$(UV) run python -m scripts.smoke.langfuse_callback
+	$(UV_RUN) python -m scripts.smoke.langfuse_callback
 
 smoke-langfuse-prompt: ## Run Langfuse prompt smoke
-	$(UV) run python -m scripts.smoke.langfuse_prompt
+	$(UV_RUN) python -m scripts.smoke.langfuse_prompt
 
 docker-build: ## Build docker image
 	docker build -t ai-platform-template:local .

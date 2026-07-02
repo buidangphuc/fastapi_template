@@ -27,8 +27,10 @@ async def test_build_chat_model_delegates_provider_and_model_to_init_chat_model(
         calls["target"] = target
         return FakeListChatModel(responses=["provider-chat response"])
 
+    # init_chat_model is imported lazily inside _default_model_builder (the
+    # [ai] extra boundary) — patch it at its source module.
     monkeypatch.setattr(
-        "app.modules.ai.llm.router.init_chat_model",
+        "langchain.chat_models.init_chat_model",
         fake_init_chat_model,
     )
     settings = test_settings.model_copy(
