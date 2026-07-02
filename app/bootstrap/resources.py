@@ -68,6 +68,7 @@ class ApplicationResources:
     webhook_signer: WebhookSigner | None = None
     webhook_dispatcher: HttpWebhookDispatcher | None = None
     webhook_retry_policy: RetryPolicy | None = None
+    services: dict[str, object] = field(default_factory=dict)
     # Lifecycle bookkeeping (close in reverse)
     addons: list[BootstrapAddon] = field(default_factory=list)
 

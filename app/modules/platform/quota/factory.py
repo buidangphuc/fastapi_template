@@ -13,11 +13,14 @@ from app.modules.platform.quota.store import StaticQuotaPolicyStore
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+    from app.modules.platform.mongo.gateway import MongoGateway
+
 
 def build_quota_service(
     settings: Settings,
     *,
     sessionmaker: async_sessionmaker[AsyncSession] | None = None,
+    mongo: MongoGateway | None = None,
     policies: dict[str, QuotaPolicy] | None = None,
 ) -> QuotaService:
     if settings.QUOTA_BACKEND == "memory":
@@ -30,6 +33,12 @@ def build_quota_service(
         from app.modules.platform.quota.adapters.postgres import PostgresQuotaStore
 
         store = PostgresQuotaStore(sessionmaker)
+    elif settings.QUOTA_BACKEND == "mongo":
+        if mongo is None:
+            raise RuntimeError("mongo gateway is required for mongo quota backend")
+        from app.modules.platform.quota.adapters.mongo import MongoQuotaStore
+
+        store = MongoQuotaStore(mongo)
     else:
         raise ValueError(f"Unknown QUOTA_BACKEND={settings.QUOTA_BACKEND!r}")
 
@@ -55,9 +64,14 @@ class QuotaAddon:
             raise RuntimeError(
                 "QuotaAddon with QUOTA_BACKEND=postgres requires DATABASE_ENABLED"
             )
+        if settings.QUOTA_BACKEND == "mongo" and not settings.MONGO_ENABLED:
+            raise RuntimeError(
+                "QuotaAddon with QUOTA_BACKEND=mongo requires MONGO_ENABLED"
+            )
         resources.quota = build_quota_service(
             settings,
             sessionmaker=resources.sessionmaker,
+            mongo=resources.mongo,
         )
 
     async def close(self, app: FastAPI, resources: ApplicationResources) -> None:
