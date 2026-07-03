@@ -41,6 +41,13 @@ Rules:
 When adding a model call: get the target from the router, invoke with the
 trace config, then record success/error so fallback health stays accurate.
 
+> **Open seam: the template itself never reports outcomes.** The scaffold
+> handler (`handlers/echo.py`) doesn't touch the router, so no shipped code
+> path calls `record_success`/`record_error` — the breaker cannot trip and
+> fallback never engages until your first real handler reports them. That
+> wiring deliberately lives with the product handler, not the scaffold:
+> outcome reporting only makes sense where the provider call happens.
+
 ## Evals — `app/modules/ai/evals/`
 
 Evals are the test suite for AI behavior. `runner.py` gives you:
@@ -105,6 +112,14 @@ Do not modify `CompletionPipeline` to add behavior — swap the handler.
 - **Redaction:** `RedactionPolicy` (`app/core/redaction`) before logging/tracing
   sensitive input or output.
 - **Evals:** at least one eval case covering the new behavior.
+
+> **Open seam: traces are NOT auto-redacted.** The Langfuse callback captures
+> prompt/output content as-is; only RAG redacts by construction
+> (`rag/service.py`). `RedactionPolicy.from_trace_content` is the intended
+> hook, but it has zero callers and there is no `TRACE_CONTENT` setting — that
+> flag was deliberately trimmed with the other advanced settings
+> (`tests/unit/core/test_config.py` pins its absence). A product that traces
+> sensitive data adds its own setting and applies the policy at the call site.
 
 ## Ship checklist for an AI feature
 
