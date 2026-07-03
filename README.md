@@ -13,8 +13,8 @@ This repository currently covers the local application foundation:
 - Static Bearer token authentication.
 - Central application composition root for project services that are built from
   platform resources.
-- Lean product primitives: service context, explicit DB transactions,
-  pagination schemas, audit events, and idempotency persistence.
+- Lean product primitives: per-concern request dependencies, explicit DB
+  transactions, pagination schemas, audit events, and idempotency persistence.
 - Fixed-window rate limiting foundation.
 - Native LangChain chat model wiring with per-instance Langfuse tracker.
 - LlamaIndex advanced retrieval support code using native `Document` and
@@ -56,8 +56,10 @@ The API starts on `http://localhost:8000`.
 Useful endpoints:
 
 - `GET /healthz` — liveness probe (always 200 while process is alive)
-- `GET /readyz` — readiness probe (503 when Postgres/Redis are unreachable)
-- `GET /api/v1/auth/me`
+- `GET /readyz` — readiness probe (503 when an enabled dependency — Postgres,
+  Redis, or Mongo, gated by `DATABASE_ENABLED`/`REDIS_ENABLED`/`MONGO_ENABLED`
+  — is unreachable; with the minimal-core defaults no dependency checks are
+  registered, so it always reports ok)
 - `POST /api/v1/completions`
 - `POST /api/v1/completions/stream`
 
@@ -104,7 +106,7 @@ app/
       llm/              LangChain chat model factory and per-instance Langfuse tracker
       rag/              LlamaIndex-backed knowledge retrieval and tool builders
       evals/            Evaluation harness scaffolding
-    business/           Domain logic (completions transport, listing generator)
+    business/           Domain logic (completions transport scaffold)
     messaging/
       outbox/           Transactional outbox
       queue/            Queue service contracts + adapters (memory/redis/sqs/rabbitmq)
@@ -118,6 +120,8 @@ app/
       cache/            Cache service contracts and implementations
       objects/          Object storage contracts + adapters (memory/s3)
       mongo/            MongoDB gateway + lifespan addon
+      quota/            Quota policies, reservations, and stores (memory/mongo/postgres)
+      model_server/     HTTP client for a self-hosted model server (predict contract)
 alembic/                Migration environment
 scripts/                Local helper scripts (including Langfuse smoke runners)
 tests/                  Unit and integration tests
@@ -130,18 +134,26 @@ make dev                    # run local API with uvicorn reload
 make test                   # run full pytest suite
 make smoke-langfuse         # exercise the Langfuse callback against the local stack
 make smoke-langfuse-prompt  # exercise the Langfuse prompt-management flow
-make hygiene                # check stale template coupling
+make check-env              # verify .env.example matches Settings fields
+make ci                     # ruff checks + env check + typecheck + tests
 ```
 
 ## Secrets
 
 Copy `.env.example` to `.env` for local development. Keep real secrets in environment variables or your team's secret manager, not in Git.
 
-## Runtime Defaults
+## Local `.env` defaults (from `.env.example`)
 
 The template boots without cloud credentials. The app factory does not create AI
 runtime services by default; project business logic can wire LangChain or
 LlamaIndex services where it actually needs them.
+
+The values below are what `.env.example` ships for the local golden path — they
+are **not** the code defaults. In code every capability `*_ENABLED` flag
+defaults to `false` (`LANGFUSE_ENABLED` included, `app/core/config/ai.py`),
+`AUTH_BEARER_TOKEN` defaults to `""`, and `LANGFUSE_BASE_URL` defaults to
+`https://cloud.langfuse.com`. `.env.example` pre-enables Langfuse with dummy
+local keys only so `make docker-run-langfuse` works out of the box.
 
 - `CHAT_MODEL=`
 - `AUTH_BEARER_TOKEN=change-me-local-bearer-token`
@@ -152,10 +164,10 @@ LlamaIndex services where it actually needs them.
 - `CORS_ALLOW_ORIGINS=*`
 - `TRUSTED_HOSTS=*`
 - `MAX_REQUEST_BODY_BYTES=10485760`
-- `LANGFUSE_ENABLED=true`
+- `LANGFUSE_ENABLED=true`  *(example only; code default `false`)*
 - `LANGFUSE_PUBLIC_KEY=lf_pk_local_ai_platform`
 - `LANGFUSE_SECRET_KEY=lf_sk_local_ai_platform`
-- `LANGFUSE_BASE_URL=http://localhost:3000`
+- `LANGFUSE_BASE_URL=http://localhost:3000`  *(example only; code default `https://cloud.langfuse.com`)*
 
 To use a real model, install the relevant LangChain provider package, set the
 provider's standard environment variables in your runtime, then set
@@ -170,14 +182,20 @@ standard error envelopes for FastAPI/Starlette HTTP errors, and access logs with
 method, path, status, duration, request id, and authenticated principal when
 available.
 
-Business endpoints should depend on `app.core.context.ServiceContextDep` when
-they need the request boundary. The context is intentionally small:
-`request_id`, authenticated `principal`, optional `idempotency_key`, and DB
-session. `idempotency_key` is only parsed when `IDEMPOTENCY_ENABLED=true`; with
-the default `false`, incoming `Idempotency-Key` headers are ignored. The context
-does not carry Redis, object storage clients, feature flags, or AI runtimes; add
-those directly at the business module boundary when a project actually needs
-them.
+Endpoints reach the request boundary through small per-concern dependencies,
+not a single context object: `DbSession`
+(`app.core.database.engine`) for the SQLAlchemy session,
+`Depends(require_principal)` (`app.modules.platform.identity.auth`) for the
+authenticated principal (which also sets `request.state.principal`),
+`get_request_id()` (`app.core.request_context`) for the request id, and
+`Depends(get_idempotency_key)`
+(`app.modules.platform.idempotency.http`) for the optional idempotency key. The
+`Idempotency-Key` header is parsed only by endpoints that opt into those
+helpers; validation runs regardless of the flag, while `IDEMPOTENCY_ENABLED`
+gates the persistence store (calling the replay helpers with the flag off
+raises `503 idempotency_disabled`). No shared context object carries Redis,
+object storage clients, feature flags, or AI runtimes; add those directly at the
+business module boundary when a project actually needs them.
 
 Application wiring is centralized in the bootstrap layer. API routers should
 keep only HTTP concerns: path/query/body parsing, response models or envelopes,
@@ -214,16 +232,17 @@ List endpoints can reuse `app.core.pagination.PaginationParams` and
 `{"items": [...], "pagination": {"limit": 50, "offset": 0, "total": 123}}`.
 The template intentionally does not ship a generic query builder.
 
-`app.modules.audit.record_audit_event(...)` records product audit events for
-"who did what to which resource". Audit metadata is guarded against raw prompt,
+`app.modules.platform.audit.service.record_audit_event(...)` records product
+audit events for "who did what to which resource". Audit metadata is guarded against raw prompt,
 message, payload, input, output, and generated text keys; store IDs, counts,
 status, duration, error codes, and `langfuse_trace_id` instead. Langfuse remains
 the place for AI trace details.
 
 When `IDEMPOTENCY_ENABLED=true`,
-`app.core.idempotency.get_idempotency_key` validates the optional
-`Idempotency-Key` header. `app.modules.idempotency` adds concrete persistence
-with an `idempotency_keys` table. Request hashes include method, path, body, and
+`app.modules.platform.idempotency.http.get_idempotency_key` validates the
+optional `Idempotency-Key` header, and the same
+`app.modules.platform.idempotency` package adds concrete persistence with an
+`idempotency_keys` table. Request hashes include method, path, body, and
 principal id. Reusing the same key with a different request returns
 `409 idempotency_key_conflict`; reusing an in-progress key returns
 `409 idempotency_key_in_progress`. Streaming responses are intentionally outside
@@ -247,7 +266,7 @@ To use the completions transport, inject business logic at app construction:
 ```python
 from collections.abc import AsyncIterator
 
-from app.api.v1.completions.schemas import (
+from app.modules.business.completions.schemas import (
     CompletionRequest,
     CompletionResult,
     CompletionStreamChunk,
@@ -266,7 +285,7 @@ class MyCompletionHandler:
         yield CompletionStreamChunk(delta="...")
 
 
-app = create_app(MyCompletionHandler())
+app = create_app(completion_handler=MyCompletionHandler())
 ```
 
 Without an injected handler, `/api/v1/completions` and
@@ -276,21 +295,28 @@ The app factory registers a FastAPI lifespan that calls
 `langfuse.get_client().flush()` on shutdown when `LANGFUSE_ENABLED=true` and
 `init_resources=True`, so any buffered traces from per-instance trackers are
 drained before the process exits. The app factory also owns shared runtime
-resources on `app.state.engine`, `app.state.sessionmaker`, and
-`app.state.redis`; readiness checks and DB dependencies reuse those handles,
-and the lifespan closes Redis plus disposes the SQLAlchemy engine on shutdown.
+resources on `app.state.resources` (an `ApplicationResources` holding `.engine`,
+`.sessionmaker`, and `.redis`); readiness checks and DB dependencies reuse those
+handles, and the lifespan closes Redis plus disposes the SQLAlchemy engine on
+shutdown.
 Tests construct the app with `init_resources=False`, which skips external
 readiness checks.
 
 ## Bearer Auth
 
-Set `AUTH_BEARER_TOKEN` in `.env`, then call protected endpoints with:
+Set `AUTH_BEARER_TOKEN` in `.env`, then call a protected endpoint with:
 
 ```bash
-curl http://localhost:8000/api/v1/auth/me \
-  -H "Authorization: Bearer $AUTH_BEARER_TOKEN"
+curl -X POST http://localhost:8000/api/v1/completions \
+  -H "Authorization: Bearer $AUTH_BEARER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "hi"}]}'
 ```
 
 The template intentionally does not create users, passwords, sessions, or API
-key tables. `AUTH_SUBJECT` and `AUTH_ROLES` define the local principal returned
-by `/api/v1/auth/me` as `{"id": "...", "type": "service", "scopes": [...]}`.
+key tables. `AUTH_SUBJECT` and `AUTH_ROLES` (`app/core/config/platform.py`)
+define the `Principal` built by `require_principal`
+(`app/modules/platform/identity/auth.py`) as
+`{"id": "...", "type": "service", "scopes": [...]}`, which guards every
+`/api/v1/completions*` route. There is no `/auth/me` endpoint — its absence is
+pinned by `tests/unit/core/test_application_wiring.py`.

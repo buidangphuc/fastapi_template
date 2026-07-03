@@ -126,7 +126,7 @@ legacy endpoint path stays the same
   -> platform capabilities provide shared infrastructure
 ```
 
-Do not force legacy endpoints into the template `/v1/completions` pattern unless the user explicitly asks for a new endpoint. The completions surface is a scaffold pattern, not a replacement for migrated legacy contracts.
+Do not force legacy endpoints into the template `/api/v1/completions` pattern unless the user explicitly asks for a new endpoint. The completions surface is a scaffold pattern, not a replacement for migrated legacy contracts.
 
 ## Codegraph Checklist
 

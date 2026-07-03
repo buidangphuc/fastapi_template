@@ -35,7 +35,11 @@ instead of, the template skill.
 | LLM + tracing + RAG | `uv sync --extra ai`, then `CHAT_MODEL=...`, `LANGFUSE_ENABLED`, `RAG_ENABLED` | provider keys / langfuse |
 
 The standard stack for a typical service is DATABASE + REDIS + QUEUE + TASKS +
-RATE_LIMIT — `docker-compose.local.yaml` is the worked example.
+RATE_LIMIT. `docker-compose.local.yaml` is the worked example of the
+DATABASE + REDIS half; flip `QUEUE_ENABLED`/`TASKS_ENABLED`/`RATE_LIMIT_ENABLED`
+in `.env` on top of it, and when you enable TASKS add a second compose service
+running the worker (`python -m scripts.run_worker` — the same command
+`make worker` runs locally).
 
 ## 2. Add a business domain (the one pattern to copy)
 
