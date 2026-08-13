@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from sqlalchemy import case, select, update
+from sqlalchemy import case, delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -135,6 +135,43 @@ class PostgresQuotaStore:
                     reset_at=query.reset_at,
                 )
             return _usage_from_row(row)
+
+    async def reset_usage(self, query: QuotaUsageQuery) -> QuotaUsage:
+        async with self.sessionmaker() as session, session.begin():
+            await session.execute(
+                delete(QuotaReservationRecord).where(
+                    QuotaReservationRecord.subject_id == query.subject_id,
+                    QuotaReservationRecord.resource == query.resource,
+                )
+            )
+            await session.execute(
+                delete(QuotaCounter).where(
+                    QuotaCounter.subject_id == query.subject_id,
+                    QuotaCounter.resource == query.resource,
+                )
+            )
+            return QuotaUsage(
+                subject_id=query.subject_id,
+                resource=query.resource,
+                window_key=query.window_key,
+                used=0,
+                limit=query.limit,
+                remaining=query.limit,
+                reset_at=query.reset_at,
+            )
+
+    async def reset_resource(self, resource: str) -> None:
+        async with self.sessionmaker() as session, session.begin():
+            await session.execute(
+                delete(QuotaReservationRecord).where(
+                    QuotaReservationRecord.resource == resource,
+                )
+            )
+            await session.execute(
+                delete(QuotaCounter).where(
+                    QuotaCounter.resource == resource,
+                )
+            )
 
     async def close(self) -> None:
         return None

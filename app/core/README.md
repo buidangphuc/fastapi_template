@@ -14,6 +14,7 @@ core/
 ├── health.py         # HealthService — generic check registry
 ├── logging.py        # loguru ↔ stdlib bridge + request_id context injection
 ├── middleware.py     # 6 ASGI middleware classes
+├── mongo.py          # build_mongo_client (lazy motor import; optional [mongo] extra)
 ├── pagination.py     # PaginationParams + ListResponse generic
 ├── redaction.py      # RedactionPolicy for PII / secrets
 ├── redis.py          # build_redis_client + check_redis_connection
@@ -33,9 +34,10 @@ config/
 ├── runtime.py        # Environment enum, project metadata, logging, graceful shutdown
 ├── http.py           # CORS, trusted hosts, body limit, security headers, gzip, request timeout
 ├── infra.py          # Postgres + Redis
+├── mongo.py          # Mongo (MONGO_ENABLED, MONGODB_URI, timeouts) — disabled by default
 ├── ai.py             # LLM router + Langfuse + RAG
 ├── messaging.py      # Queue, tasks, worker, outbox, webhooks
-└── platform.py       # Auth, rate limit, cache, objects, idempotency
+└── platform.py       # Auth, rate limit, cache, objects, idempotency, quota
 ```
 
 ### Adding a field
@@ -185,7 +187,7 @@ breaker.allows_request() / record_success() / record_failure(status_code=...)
 TimeoutPolicy(timeout_seconds: float)  # Used by callers with asyncio.wait_for
 ```
 
-Used by: `messaging/webhooks/dispatcher.py`, `ai/llm/router.py` (circuit breaker for primary→secondary failover), `ai/rag/service.py` (timeout), `messaging/outbox/publisher.py`, `messaging/tasks/...`.
+Used by: `messaging/webhooks/dispatcher.py`, `ai/llm/router.py` (circuit breaker for primary→secondary failover), `ai/rag/service.py` (timeout), `ai/evals/runner.py` (timeout), `messaging/outbox/publisher.py`. (Worker retry uses `WORKER_MAX_ATTEMPTS`, not a `RetryPolicy`.)
 
 ---
 
@@ -196,7 +198,7 @@ Two functions only:
 - `build_redis_client(settings) -> Redis` — single async client with timeout config
 - `check_redis_connection(redis) -> None` — ping for health check
 
-The client is owned by `app.state.resources.redis` and shared across cache, rate_limit, idempotency, queue, task store. Don't close it from individual modules — bootstrap closes it on shutdown.
+The client is owned by `app.state.resources.redis` and shared across cache, rate_limit, queue, task store. (Idempotency is postgres-backed via `PostgresIdempotencyStore`, not Redis.) Don't close it from individual modules — bootstrap closes it on shutdown.
 
 ---
 
@@ -228,10 +230,15 @@ The request_id flows through:
 ## redaction.py
 
 ```python
-RedactionPolicy(mode: Literal["redacted", "raw"])
-policy.redact_text(text)       # strips email/bearer/secret patterns
+RedactionPolicy(*, mode: Literal["off", "redacted", "full"] = "redacted")
+policy.redact_text(text)       # "redacted": strip email/bearer/secret patterns
 policy.redact_mapping(metadata) # redacts dict values, keeps keys
 ```
+
+Modes: `"full"` passes text through unchanged, `"redacted"` (default) strips
+email/bearer/secret patterns, `"off"` replaces content with `"[redacted]"`
+entirely. `RedactionPolicy.from_trace_content(value)` maps an unknown string to
+the safe `"redacted"` default.
 
 Used by `app/modules/ai/rag/service.py` before indexing documents (so vector store never contains raw PII).
 
@@ -243,15 +250,20 @@ Generic pagination primitives:
 
 ```python
 class PaginationParams(BaseModel):
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=20, ge=1, le=100)
+    limit: int = Field(default=50, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
-class PaginationMeta(BaseModel): ...
+class PaginationMeta(BaseModel):
+    limit: int
+    offset: int
+    total: int = Field(ge=0)
 
-class ListResponse(BaseModel, Generic[T]):
-    items: list[T]
-    meta: PaginationMeta
+class ListResponse(BaseModel, Generic[ItemT]):
+    items: list[ItemT]
+    pagination: PaginationMeta
 ```
+
+The keyword-only helper `build_list_response(*, items, total, params) -> ListResponse[ItemT]` assembles the `PaginationMeta` from `params` and `total`.
 
 Not yet wired into any endpoint. Template scaffold — use when adding `/list` style endpoints.
 

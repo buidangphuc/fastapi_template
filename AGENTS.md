@@ -1,6 +1,6 @@
 # Agent Instructions
 
-For repo architecture, service/endpoint changes, legacy/DGL migration, dependency
+For repo architecture, service/endpoint changes, legacy migration, dependency
 wiring, or request-flow debugging, use the repo-local skill as the source of
 truth:
 

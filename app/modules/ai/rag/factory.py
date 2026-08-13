@@ -1,21 +1,30 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI
-from llama_index.core import StorageContext
-from llama_index.core.base.embeddings.base import BaseEmbedding
-from llama_index.core.embeddings import MockEmbedding
 
 from app.bootstrap.resources import ApplicationResources
 from app.core.config import Settings
 from app.core.redaction import RedactionPolicy
 from app.core.resilience import TimeoutPolicy
-from app.modules.ai.rag.service import (
-    KnowledgeRetrievalService,
-    build_rag_node_parser,
-)
+from app.modules.ai._deps import require_llama_index
+
+if TYPE_CHECKING:
+    from llama_index.core import StorageContext
+    from llama_index.core.base.embeddings.base import BaseEmbedding
+
+    from app.modules.ai.rag.service import KnowledgeRetrievalService
+
+# LlamaIndex lives behind the [ai] extra: everything here imports it lazily so
+# registering RagAddon (which happens on every boot) never pulls the package —
+# only actually opening the addon (RAG_ENABLED=true) does.
 
 
 def build_embed_model(settings: Settings) -> BaseEmbedding:
+    require_llama_index()
+    from llama_index.core.embeddings import MockEmbedding
+
     if not settings.RAG_EMBED_MODEL:
         return MockEmbedding(embed_dim=settings.RAG_MOCK_EMBED_DIM)
 
@@ -26,6 +35,9 @@ def build_embed_model(settings: Settings) -> BaseEmbedding:
 
 
 def build_storage_context(settings: Settings) -> StorageContext:
+    require_llama_index()
+    from llama_index.core import StorageContext
+
     if settings.RAG_BACKEND == "memory":
         return StorageContext.from_defaults()
 
@@ -36,6 +48,12 @@ def build_storage_context(settings: Settings) -> StorageContext:
 
 
 def build_rag_service(settings: Settings) -> KnowledgeRetrievalService:
+    require_llama_index()
+    from app.modules.ai.rag.service import (
+        KnowledgeRetrievalService,
+        build_rag_node_parser,
+    )
+
     return KnowledgeRetrievalService(
         embed_model=build_embed_model(settings),
         node_parser=build_rag_node_parser(

@@ -13,8 +13,12 @@ WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.4 /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
+# Opt-in optional extras (e.g. --build-arg UV_EXTRAS=ai, or "ai aws").
+# Defaults to empty so the minimal-core image stays small.
+ARG UV_EXTRAS=""
 RUN --mount=type=cache,target=/tmp/uv-cache \
-    uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --no-install-project \
+    $(for e in $UV_EXTRAS; do printf -- '--extra %s ' "$e"; done)
 
 # Runtime stage: minimal image, non-root, healthcheck
 FROM python:3.12-slim AS runtime
@@ -31,7 +35,6 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app app ./app
 COPY --chown=app:app alembic ./alembic
-COPY --chown=app:app scripts ./scripts
 COPY --chown=app:app main.py alembic.ini ./
 
 USER app

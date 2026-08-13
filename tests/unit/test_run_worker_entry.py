@@ -33,6 +33,9 @@ from tests.factories import build_test_settings
 
 def _settings() -> Settings:
     return build_test_settings(
+        # The worker stack is opt-in on the template — enable it explicitly.
+        QUEUE_ENABLED=True,
+        TASKS_ENABLED=True,
         QUEUE_BACKEND="memory",
         TASK_STORE_BACKEND="memory",
         WORKER_MAX_CONCURRENT=4,
@@ -221,7 +224,13 @@ async def test_worker_context_manager_closes_queue_and_store(monkeypatch):
     ["memory", "redis"],
 )
 def test_build_worker_context_honors_queue_backend(queue_backend: str):
-    settings = _settings().model_copy(update={"QUEUE_BACKEND": queue_backend})
+    settings = _settings().model_copy(
+        update={
+            "QUEUE_BACKEND": queue_backend,
+            # The redis backend additionally requires the redis capability.
+            "REDIS_ENABLED": queue_backend == "redis",
+        }
+    )
     ctx = build_worker_context(settings)
     assert ctx.worker is not None
 

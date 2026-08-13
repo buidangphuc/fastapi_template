@@ -84,17 +84,24 @@ class QuotaService:
         policy: QuotaPolicy | None = None,
     ) -> QuotaUsage:
         resolved_policy = await self._resolve_policy(resource, policy)
-        now = _ensure_utc(self._clock())
-        window = resolve_fixed_window(now, resolved_policy.window_seconds)
         return await self._store.get_usage(
-            QuotaUsageQuery(
-                subject_id=subject_id,
-                resource=resolved_policy.resource,
-                window_key=window.key,
-                limit=resolved_policy.limit,
-                reset_at=window.reset_at,
-            )
+            self._usage_query(subject_id, resolved_policy)
         )
+
+    async def reset_usage(
+        self,
+        *,
+        subject_id: str,
+        resource: str,
+        policy: QuotaPolicy | None = None,
+    ) -> QuotaUsage:
+        resolved_policy = await self._resolve_policy(resource, policy)
+        return await self._store.reset_usage(
+            self._usage_query(subject_id, resolved_policy)
+        )
+
+    async def reset_resource(self, resource: str) -> None:
+        await self._store.reset_resource(resource)
 
     async def close(self) -> None:
         await self._store.close()
@@ -112,6 +119,21 @@ class QuotaService:
         if stored is None:
             raise KeyError(f"No quota policy configured for resource {resource!r}")
         return stored
+
+    def _usage_query(
+        self,
+        subject_id: str,
+        policy: QuotaPolicy,
+    ) -> QuotaUsageQuery:
+        now = _ensure_utc(self._clock())
+        window = resolve_fixed_window(now, policy.window_seconds)
+        return QuotaUsageQuery(
+            subject_id=subject_id,
+            resource=policy.resource,
+            window_key=window.key,
+            limit=policy.limit,
+            reset_at=window.reset_at,
+        )
 
 
 def resolve_fixed_window(now: datetime, window_seconds: int) -> QuotaWindow:

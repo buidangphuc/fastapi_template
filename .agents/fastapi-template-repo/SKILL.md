@@ -40,7 +40,9 @@ Short version:
 
 - `app/api`: transport/controller layer.
 - `app/bootstrap`: app factory, lifespan resources, and central service composition.
-- `app/modules/platform`: reusable capabilities such as Mongo, quota, cache, objects, rate limit, idempotency, queues.
+- `app/modules/platform`: reusable capabilities such as Mongo, quota, cache, objects, rate limit, idempotency, model_server.
+- `app/modules/messaging`: queue gateway/worker, outbox, tasks, webhooks.
+- `app/modules/ai`: optional AI extras (LLM, RAG, evals) behind lazy-import guards (`app/modules/ai/_deps.py`).
 - `app/modules/business`: domain/product logic only.
 - `app/core`: settings, infra primitives, health, errors, middleware.
 

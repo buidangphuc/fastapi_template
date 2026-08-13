@@ -19,16 +19,18 @@ def test_settings_defaults_are_local_safe():
     assert settings.LANGFUSE_SECRET_KEY == ""
     assert settings.LANGFUSE_BASE_URL == "https://cloud.langfuse.com"
     assert settings.LANGFUSE_PROMPT_CACHE_TTL_SECONDS == 60
+    # Minimal-core template: every addon capability is opt-in by default.
     assert settings.IDEMPOTENCY_ENABLED is False
     assert settings.QUOTA_ENABLED is False
     assert settings.QUOTA_BACKEND == "memory"
-    assert settings.DATABASE_ENABLED is True
+    assert settings.DATABASE_ENABLED is False
     assert settings.MONGO_ENABLED is False
     assert settings.MONGODB_URI == "mongodb://localhost:27017"
     assert settings.MONGODB_DATABASE == "app"
-    assert settings.REDIS_ENABLED is True
-    assert settings.QUEUE_ENABLED is True
-    assert settings.TASKS_ENABLED is True
+    assert settings.REDIS_ENABLED is False
+    assert settings.QUEUE_ENABLED is False
+    assert settings.TASKS_ENABLED is False
+    assert settings.RATE_LIMIT_ENABLED is False
     assert settings.CACHE_ENABLED is False
     assert settings.CACHE_BACKEND == "memory"
     assert settings.WEBHOOKS_ENABLED is False
@@ -245,10 +247,10 @@ def test_env_example_includes_app_settings_defaults():
     assert "IDEMPOTENCY_ENABLED=false" in env_example
     assert "QUOTA_ENABLED=false" in env_example
     assert "QUOTA_BACKEND=memory" in env_example
-    assert "DATABASE_ENABLED=true" in env_example
-    assert "REDIS_ENABLED=true" in env_example
-    assert "QUEUE_ENABLED=true" in env_example
-    assert "TASKS_ENABLED=true" in env_example
+    assert "DATABASE_ENABLED=false" in env_example
+    assert "REDIS_ENABLED=false" in env_example
+    assert "QUEUE_ENABLED=false" in env_example
+    assert "TASKS_ENABLED=false" in env_example
     assert "SQS_ENDPOINT_URL=" in env_example
     assert "SQS_VISIBILITY_TIMEOUT_SECONDS=0" in env_example
     assert "WORKER_MAX_ATTEMPTS=3" in env_example
