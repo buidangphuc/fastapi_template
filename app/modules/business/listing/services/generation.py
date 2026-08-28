@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -161,3 +162,27 @@ class PairAddressGenerationService:
             title=generated["title"],
             description=generated["description"],
         )
+
+    async def astream(
+        self,
+        *,
+        user_id: str,
+        style: StyleType,
+        params: PairAddressParams,
+        address_version: AddressVersionType,
+    ) -> AsyncIterator[tuple[str, str]]:
+        """Stream ``(field, delta)`` events — field is ``"title"``/``"description"``.
+
+        Lean path: selects a template, then delegates to the generator's token
+        streaming method. It does not persist a ``Listing`` — the frozen
+        ``generate`` path remains the source of truth for stored listings.
+        """
+        template = await self._template_selection.select(user_id, style)
+        async for field_delta in self._generator.astream_fields(
+            tone=_tone_for_style(style),
+            style=style,
+            params=params,
+            template_id=template.selected_template,
+            address_version=address_version,
+        ):
+            yield field_delta

@@ -15,6 +15,7 @@ dependencies = [
   "greenlet>=3.1.1,<4.0.0",
   "httptools>=0.6.4,<0.7.0",
   "langchain>=1.0,<2.0",
+  "langchain-google-vertexai>=3.2.3",
   "langchain-openai>=1.0,<2.0",
   "langfuse>=4.0,<5.0",
   "langgraph>=1.0,<2.0",

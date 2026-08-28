@@ -6,6 +6,10 @@ module (``address_placeholder=True`` opening + address-derived title options).
 Pair-address specifics owned here: ``{ADDRESS_PLACEHOLDER}`` post-processing,
 address-prefix normalization, ``address_for_title`` selection, and a title-
 length retry that falls back to a deterministic title.
+
+A streaming variant (:meth:`PairAddressGenerator.astream_description`) reuses the
+same prompt but skips structured output + the title retry so tokens surface as
+soon as the model emits them — used by ``POST /description/pair_address/stream``.
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+from collections.abc import AsyncIterator
 from typing import Any, cast
 
 import numpy as np
@@ -43,6 +48,61 @@ _ADDRESS_PREFIX_RE = re.compile(
 _MAX_TITLE_LENGTH = 99
 _MAX_TITLE_ATTEMPTS = 2
 PROMPT_VERSION = "listing-pair-address-2026-06-02"
+
+
+# Strip a leading "Title:" / "Tiêu đề:" label (with optional markdown bold) that
+# free-form models tend to prepend to the first line.
+# Colon required so a genuine title that merely starts with "Tiêu đề" is kept;
+# only an explicit label like "Title:" / "**Tiêu đề:**" is stripped.
+_TITLE_LABEL_RE = re.compile(
+    r"^\s*\**\s*(?:title|tiêu đề)\s*\**\s*:\s*\**\s*", re.IGNORECASE
+)
+
+
+def _strip_title_label(text: str) -> str:
+    return _TITLE_LABEL_RE.sub("", text).strip()
+
+
+# The description label the model emits ("Mô tả:" / "Description:"). Its first
+# occurrence marks the title -> description boundary and is consumed (so it does
+# not leak into the streamed description).
+_DESC_MARKER_RE = re.compile(
+    r"\**\s*(?:mô tả|description)\s*\**\s*:\s*\**\s*", re.IGNORECASE
+)
+
+
+class _StreamingPlaceholderReplacer:
+    """Substitute fixed placeholders within a token stream.
+
+    Holds back a trailing window (the longest key) so a placeholder split across
+    two chunks is still substituted before it reaches the client.
+    """
+
+    def __init__(self, replacements: dict[str, str]) -> None:
+        self._repl = dict(replacements)
+        self._hold = max((len(key) for key in self._repl), default=0)
+        self._buf = ""
+
+    def _apply(self) -> None:
+        for key, value in self._repl.items():
+            self._buf = self._buf.replace(key, value)
+
+    def feed(self, text: str) -> str:
+        self._buf += text
+        self._apply()
+        if self._hold == 0:
+            out, self._buf = self._buf, ""
+            return out
+        if len(self._buf) <= self._hold:
+            return ""
+        emit = self._buf[: -self._hold]
+        self._buf = self._buf[-self._hold :]
+        return emit
+
+    def flush(self) -> str:
+        self._apply()
+        out, self._buf = self._buf, ""
+        return out
 
 
 class PairAddressGenerator:
@@ -128,12 +188,11 @@ class PairAddressGenerator:
         return _ADDRESS_PREFIX_RE.sub(lambda m: m.group(0).lower(), address)
 
     @classmethod
-    def _replace_address_placeholders(
-        cls, content: str, params: PairAddressParams
-    ) -> str:
-        if not content:
-            return content
+    def _resolve_placeholder_address(cls, params: PairAddressParams) -> str | None:
+        """Pick the formatted address used to fill ``{ADDRESS_PLACEHOLDER}``.
 
+        Returns ``None`` when neither a new nor an old display address exists.
+        """
         new_address = cls._normalize_address_prefixes(
             getattr(params, "new_display_address", None)
         )
@@ -148,21 +207,29 @@ class PairAddressGenerator:
                 truncated_old_address = ", ".join(address_parts[-2:])
 
         if not new_address and not truncated_old_address:
-            return content
+            return None
         if new_address and not truncated_old_address:
-            formatted_address = new_address
-        elif truncated_old_address and not new_address:
-            formatted_address = truncated_old_address
-        else:
-            variations = [
-                f"{new_address} ({truncated_old_address} cũ)",
-                f"{new_address} (cũ: {truncated_old_address})",
-                f"{new_address}, trước đây {truncated_old_address}",
-                f"{new_address} - {truncated_old_address} cũ",
-                f"{new_address} (địa chỉ cũ: {truncated_old_address})",
-            ]
-            formatted_address = str(np.random.choice(variations))
+            return new_address
+        if truncated_old_address and not new_address:
+            return truncated_old_address
+        variations = [
+            f"{new_address} ({truncated_old_address} cũ)",
+            f"{new_address} (cũ: {truncated_old_address})",
+            f"{new_address}, trước đây {truncated_old_address}",
+            f"{new_address} - {truncated_old_address} cũ",
+            f"{new_address} (địa chỉ cũ: {truncated_old_address})",
+        ]
+        return str(np.random.choice(variations))
 
+    @classmethod
+    def _replace_address_placeholders(
+        cls, content: str, params: PairAddressParams
+    ) -> str:
+        if not content:
+            return content
+        formatted_address = cls._resolve_placeholder_address(params)
+        if formatted_address is None:
+            return content
         return content.replace("{ADDRESS_PLACEHOLDER}", formatted_address)
 
     @classmethod
@@ -234,17 +301,22 @@ class PairAddressGenerator:
             ]
         return ["- USE key parts of the address to keep title under 99 characters"]
 
-    async def agenerate(
+    async def _prepare_prompt(
         self,
         *,
-        language: LanguageType,
         tone: ToneType,
         style: StyleType,
         params: PairAddressParams,
         template_id: ProfessionalTemplateType | SimpleTemplateType,
-        address_version: AddressVersionType = AddressVersionType.OLD,
-    ) -> dict[str, Any]:
-        start_t = time.time()
+        address_version: AddressVersionType,
+    ) -> tuple[OpenAIPromptTemplate, dict[str, Any]]:
+        """Gather context and build the pair-address prompt.
+
+        Shared by :meth:`agenerate` (structured output + title retry) and
+        :meth:`astream_description` (token streaming) so both build the exact
+        same prompt. Returns the prompt and the post-build ``params_dict`` (the
+        latter feeds the deterministic fallback title in ``agenerate``).
+        """
         nearby_places, project = await self._gather_context(params)
 
         params_dict = params.model_dump()
@@ -359,6 +431,26 @@ class PairAddressGenerator:
         prompt.add_section(PromptSectionTemplate(name="#Input", contents=[_params_str]))
         prompt.add_section(rules)
         prompt.add_variables(params_dict)
+        return prompt, params_dict
+
+    async def agenerate(
+        self,
+        *,
+        language: LanguageType,
+        tone: ToneType,
+        style: StyleType,
+        params: PairAddressParams,
+        template_id: ProfessionalTemplateType | SimpleTemplateType,
+        address_version: AddressVersionType = AddressVersionType.OLD,
+    ) -> dict[str, Any]:
+        start_t = time.time()
+        prompt, params_dict = await self._prepare_prompt(
+            tone=tone,
+            style=style,
+            params=params,
+            template_id=template_id,
+            address_version=address_version,
+        )
 
         structured = self._chat_model.with_structured_output(Content, include_raw=True)
         content_out: Content | None = None
@@ -414,3 +506,92 @@ class PairAddressGenerator:
             "llm_model_name": self._settings.CHAT_MODEL,
             "prompt_version": PROMPT_VERSION,
         }
+
+    async def astream_fields(
+        self,
+        *,
+        tone: ToneType,
+        style: StyleType,
+        params: PairAddressParams,
+        template_id: ProfessionalTemplateType | SimpleTemplateType,
+        address_version: AddressVersionType = AddressVersionType.OLD,
+    ) -> AsyncIterator[tuple[str, str]]:
+        """Stream ``(field, delta)`` where field is ``"title"`` or ``"description"``.
+
+        True token streaming (free-form ``astream``, no structured output, which
+        would have to buffer the whole response). Heuristic split: the first
+        paragraph (up to the first blank line) is the title — emitted once with any
+        ``Title:`` label stripped — and the rest streams as description deltas.
+        ``<contact_*>``/``{ADDRESS_PLACEHOLDER}`` are substituted with cross-chunk
+        hold-back. The frozen ``agenerate`` path (structured output) is untouched.
+        """
+        prompt, _ = await self._prepare_prompt(
+            tone=tone,
+            style=style,
+            params=params,
+            template_id=template_id,
+            address_version=address_version,
+        )
+        replacements = {
+            "<contact_phone>": params.contact_phone,
+            "<contact_name>": params.contact_name,
+        }
+        formatted_address = self._resolve_placeholder_address(params)
+        if formatted_address is not None:
+            replacements["{ADDRESS_PLACEHOLDER}"] = formatted_address
+
+        def substitute(text: str) -> str:
+            for key, value in replacements.items():
+                text = text.replace(key, value)
+            return text
+
+        desc_replacer = _StreamingPlaceholderReplacer(replacements)
+        title_buf = ""
+        title_done = False
+
+        async for chunk in self._chat_model.astream(
+            prompt.to_api_message(), config=self._trace_config
+        ):
+            text = getattr(chunk, "content", "")
+            if isinstance(text, list):
+                text = "".join(part for part in text if isinstance(part, str))
+            if not text:
+                continue
+            if not title_done:
+                title_buf += text
+                marker = _DESC_MARKER_RE.search(title_buf)
+                if marker is None:
+                    continue
+                yield (
+                    "title",
+                    substitute(_strip_title_label(title_buf[: marker.start()])),
+                )
+                title_done = True
+                text = title_buf[marker.end() :]
+                title_buf = ""
+                if not text:
+                    continue
+            piece = desc_replacer.feed(text)
+            if piece:
+                yield ("description", piece)
+
+        if not title_done:
+            # No "Mô tả:" marker seen — fall back to the first blank line, then the
+            # first newline, else treat the whole buffer as the title.
+            split_at = title_buf.find("\n\n")
+            skip = 2
+            if split_at == -1:
+                split_at = title_buf.find("\n")
+                skip = 1
+            head = title_buf if split_at == -1 else title_buf[:split_at]
+            title = substitute(_strip_title_label(head))
+            if title:
+                yield ("title", title)
+            if split_at != -1:
+                rest = substitute(title_buf[split_at + skip :])
+                if rest:
+                    yield ("description", rest)
+        else:
+            tail = desc_replacer.flush()
+            if tail:
+                yield ("description", tail)

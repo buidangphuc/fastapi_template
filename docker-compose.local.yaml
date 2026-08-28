@@ -21,9 +21,16 @@ services:
       MONGODB_DATABASE: ${MONGODB_DATABASE:-dgl}
       # Real OpenAI model (matches legacy OPENAI_MODEL_NAME).
       CHAT_MODEL: ${CHAT_MODEL:-openai:gpt-4o-mini-2024-07-18}
-      # Point tracing/prompt-management at the in-network Langfuse.
-      LANGFUSE_ENABLED: "true"
-      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      # Gemini on Vertex AI -> POST /api/v1/description/pair_address/stream/gemini.
+      # Auth via ADC: mount the service-account JSON and point
+      # GOOGLE_APPLICATION_CREDENTIALS at it (see the commented volumes below).
+      VERTEX_ENABLED: ${VERTEX_ENABLED:-false}
+      VERTEX_MODEL: ${VERTEX_MODEL:-gemini-2.5-flash-lite}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/secrets/account_service.json}
+    # To enable Gemini: set VERTEX_ENABLED=true, drop your service-account JSON
+    # next to this file, and uncomment the mount below (project comes from the JSON).
+    # volumes:
+    #   - ./account_service.json:/secrets/account_service.json:ro
     ports:
       - "${DGL_API_PORT:-8000}:8000"
     depends_on:

@@ -32,3 +32,5 @@ fastapi_template
 
 # Claude Code: user-specific permissions (not shared with team)
 .claude/settings.local.json
+
+service_account.json

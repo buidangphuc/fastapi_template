@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import traceback
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -10,6 +11,7 @@ from typing import Any
 from loguru import logger
 
 from app.core.config import Settings
+from app.core.errors import AppError
 from app.modules.business.listing.models import Listing
 from app.modules.business.listing.schemas import (
     AllParams,
@@ -47,11 +49,13 @@ class ListingService:
         description_generation: DescriptionGenerationService,
         pair_address_generation: PairAddressGenerationService,
         settings: Settings,
+        pair_address_generation_gemini: PairAddressGenerationService | None = None,
     ) -> None:
         self._store = store
         self._quota = quota
         self._description_generation = description_generation
         self._pair_address_generation = pair_address_generation
+        self._pair_address_generation_gemini = pair_address_generation_gemini
         self._settings = settings
 
     async def generate_description(
@@ -92,6 +96,54 @@ class ListingService:
                 params=params,
                 address_version=address_version,
             ),
+        )
+
+    def astream_pair_address(
+        self,
+        *,
+        user_id: str,
+        style: StyleType,
+        params: PairAddressParams,
+        address_version: AddressVersionType,
+    ) -> AsyncIterator[tuple[str, str]]:
+        """Streaming variant of the pair-address generator (latency experiment).
+
+        NOTE: bypasses quota reserve/finalize on purpose — the production
+        ``POST /description/pair_address`` path still enforces the quota. This is
+        an isolated streaming experiment, not the frozen contract.
+        """
+        return self._pair_address_generation.astream(
+            user_id=user_id,
+            style=style,
+            params=params,
+            address_version=address_version,
+        )
+
+    def astream_pair_address_gemini(
+        self,
+        *,
+        user_id: str,
+        style: StyleType,
+        params: PairAddressParams,
+        address_version: AddressVersionType,
+    ) -> AsyncIterator[tuple[str, str]]:
+        """Gemini/Vertex streaming variant (same flow, different model).
+
+        Raises 501 when Vertex is not configured. Sync method so the not-
+        configured error surfaces as a proper HTTP response before streaming
+        starts (rather than mid-stream). Bypasses quota like the OpenAI variant.
+        """
+        if self._pair_address_generation_gemini is None:
+            raise AppError(
+                code="vertex_not_configured",
+                message="Vertex/Gemini is not configured (set VERTEX_ENABLED)",
+                status_code=501,
+            )
+        return self._pair_address_generation_gemini.astream(
+            user_id=user_id,
+            style=style,
+            params=params,
+            address_version=address_version,
         )
 
     async def submit_listing(self, submit_listing: SubmitListing) -> None:

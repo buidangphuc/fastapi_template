@@ -20,6 +20,8 @@ def build_test_settings(**overrides: object) -> Settings:
         "REDIS_PASSWORD": "",  # pragma: allowlist secret
         "REDIS_DATABASE": 0,
         "AUTH_BEARER_TOKEN": "test-token",  # pragma: allowlist secret
+        # Keep tests off the live Vertex SDK; /gemini tests inject a stub model.
+        "VERTEX_ENABLED": False,
     }
     values.update(overrides)
     return Settings(**values)

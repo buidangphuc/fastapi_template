@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
 from app.core.config import Settings
 from app.modules.ai.llm.runtime import LLMInstance, build_llm_instance
 from app.modules.business.listing.generation.description import DescriptionGenerator
@@ -67,6 +69,25 @@ def build_listing_llm_instance(settings: Settings) -> LLMInstance:
     )
 
 
+def build_listing_vertex_chat_model(settings: Settings) -> Any:
+    """Build the Gemini/Vertex chat model via the SAME ``init_chat_model``
+    factory as OpenAI — only the provider prefix differs.
+
+    ``init_chat_model`` routes the ``google_vertexai:`` prefix to ``ChatVertexAI``
+    and imports the Vertex SDK lazily, only when this provider is requested (i.e.
+    when VERTEX_ENABLED). Auth + GCP project/region come from Application Default
+    Credentials: set GOOGLE_APPLICATION_CREDENTIALS to the account_service.json
+    path (the JSON carries the project; region uses the Vertex default).
+    """
+    from langchain.chat_models import init_chat_model
+
+    return init_chat_model(
+        f"google_vertexai:{settings.VERTEX_MODEL}",
+        temperature=settings.LISTING_LLM_TEMPERATURE,
+        top_p=settings.LISTING_LLM_TOP_P,
+    )
+
+
 def build_listing_http_client(settings: Settings) -> Any:
     import httpx
 
@@ -80,6 +101,7 @@ def build_listing_runtime(
     quota: QuotaService,
     http_client: Any | None = None,
     chat_model: Any | None = None,
+    gemini_chat_model: Any | None = None,
     tracker: Any | None = None,
     prompt_provider: Any | None = None,
 ) -> ListingRuntime:
@@ -123,12 +145,43 @@ def build_listing_runtime(
         template_selection=template_selection,
         settings=settings,
     )
+    # Optional Gemini/Vertex variant powering POST /pair_address/stream/gemini.
+    # Built when Vertex is enabled (or a model is injected for tests); reuses the
+    # same context services + prompt, swapping only the chat model. Building is
+    # best-effort: if VERTEX_ENABLED but creds/SDK are unavailable, log and leave
+    # it off (the /gemini endpoint returns 501) rather than crash the whole app.
+    pair_address_generation_gemini = None
+    gemini_model = gemini_chat_model
+    if gemini_model is None and settings.VERTEX_ENABLED:
+        try:
+            gemini_model = build_listing_vertex_chat_model(settings)
+        except Exception as exc:
+            logger.warning(
+                "VERTEX_ENABLED but Gemini model unavailable "
+                f"(check GOOGLE_APPLICATION_CREDENTIALS): {exc!r}; "
+                "/pair_address/stream/gemini will return 501"
+            )
+            gemini_model = None
+    if gemini_model is not None:
+        pair_address_generation_gemini = PairAddressGenerationService(
+            generator=PairAddressGenerator(
+                nearby_service=nearby,
+                project_service=project,
+                chat_model=gemini_model,
+                settings=settings,
+                trace_config=trace_config,
+            ),
+            store=store,
+            template_selection=template_selection,
+            settings=settings,
+        )
     return ListingRuntime(
         service=ListingService(
             store=store,
             quota=build_listing_quota_service(quota, settings),
             description_generation=description_generation,
             pair_address_generation=pair_address_generation,
+            pair_address_generation_gemini=pair_address_generation_gemini,
             settings=settings,
         ),
         http_client=client,

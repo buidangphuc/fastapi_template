@@ -11,6 +11,12 @@ class AISettingsMixin(BaseModel):
     CHAT_FALLBACK_MODELS: str = ""
     JUDGE_CHAT_MODEL: str = ""
 
+    # Vertex AI (Gemini) — powers the separate `/pair_address/stream/gemini`
+    # endpoint. Auth uses Application Default Credentials: set the standard
+    # GOOGLE_APPLICATION_CREDENTIALS env var to the account_service.json path.
+    VERTEX_ENABLED: bool = True
+    VERTEX_MODEL: str = "gemini-2.5-flash-lite"
+
     # Langfuse observability
     LANGFUSE_ENABLED: bool = False
     LANGFUSE_PUBLIC_KEY: str = ""

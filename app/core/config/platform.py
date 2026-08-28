@@ -44,7 +44,7 @@ class PlatformSettingsMixin(BaseModel):
     IDEMPOTENCY_KEY_MAX_LENGTH: int = Field(default=64, gt=0)
 
     # Durable quota / entitlement counters
-    QUOTA_ENABLED: bool = False
+    QUOTA_ENABLED: bool = True
     QUOTA_BACKEND: str = "memory"
 
     @computed_field

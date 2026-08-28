@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pair-Address Streaming — latency demo</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #0f1115;
+        color: #e6e6e6;
+      }
+      header { padding: 16px 20px; border-bottom: 1px solid #262a33; }
+      header h1 { margin: 0; font-size: 16px; }
+      header p { margin: 4px 0 0; color: #8b93a1; font-size: 12px; }
+      main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
+      @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+      label { display: block; font-size: 12px; color: #8b93a1; margin: 10px 0 4px; }
+      input, select, textarea {
+        width: 100%; background: #171a21; color: #e6e6e6;
+        border: 1px solid #2b303b; border-radius: 8px; padding: 8px 10px;
+        font-family: inherit; font-size: 13px;
+      }
+      textarea { min-height: 320px; font-family: ui-monospace, monospace; resize: vertical; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; }
+      .row > div { flex: 1; min-width: 110px; }
+      button {
+        margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 8px;
+        background: #3b82f6; color: #fff; font-weight: 600; cursor: pointer;
+      }
+      button:disabled { opacity: .5; cursor: default; }
+      .panel { background: #12151c; border: 1px solid #232833; border-radius: 12px; padding: 16px; }
+      .metrics { display: flex; gap: 18px; margin-bottom: 12px; flex-wrap: wrap; }
+      .metric { font-size: 12px; color: #8b93a1; }
+      .metric b { display: block; font-size: 20px; color: #e6e6e6; font-variant-numeric: tabular-nums; }
+      #title-out, #desc-out {
+        white-space: pre-wrap; word-break: break-word;
+        background: #0c0e13; border: 1px solid #232833; border-radius: 8px; padding: 12px;
+      }
+      #title-out { min-height: 44px; font-weight: 600; }
+      #desc-out { min-height: 260px; }
+      .cursor::after { content: "▌"; animation: blink 1s steps(1) infinite; color: #3b82f6; }
+      @keyframes blink { 50% { opacity: 0; } }
+      .err { color: #f87171; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>POST /description/pair_address/stream[/gemini] — streaming demo</h1>
+      <p>Token streaming over SSE: <code>title</code>/<code>description</code> deltas (first paragraph = title). Bypasses quota (experiment only).</p>
+    </header>
+    <main>
+      <section class="panel">
+        <label for="endpoint">Endpoint URL (OpenAI base; Gemini appends /gemini)</label>
+        <input id="endpoint" placeholder="http://localhost:8000/api/v1/description/pair_address/stream" />
+        <div class="row">
+          <div>
+            <label for="user_id">user_id</label>
+            <input id="user_id" value="demo-user" />
+          </div>
+          <div>
+            <label for="style">style</label>
+            <select id="style">
+              <option value="simple">simple</option>
+              <option value="professional">professional</option>
+            </select>
+          </div>
+          <div>
+            <label for="address_version">address_version</label>
+            <select id="address_version">
+              <option value="0">OLD (0)</option>
+              <option value="1">NEW (1)</option>
+            </select>
+          </div>
+          <div>
+            <label for="provider">provider</label>
+            <select id="provider">
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini (Vertex)</option>
+            </select>
+          </div>
+        </div>
+        <label for="body">Request body (PairAddressParams JSON)</label>
+        <textarea id="body"></textarea>
+        <button id="go">Generate (stream)</button>
+      </section>
+
+      <section class="panel">
+        <div class="metrics">
+          <div class="metric">Time to first chunk<b id="ttft">—</b></div>
+          <div class="metric">Total time<b id="total">—</b></div>
+          <div class="metric">Characters<b id="chars">0</b></div>
+        </div>
+        <label>Title</label>
+        <div id="title-out"></div>
+        <label>Description</label>
+        <div id="desc-out"></div>
+      </section>
+    </main>
+
+    <script>
+      const EXAMPLE = {
+        goal: "bán",
+        property_type: "nhà đất",
+        area: 120.0,
+        area_unit: "m2",
+        price: 2500000000.0,
+        price_unit: "VND",
+        legality: "sổ đỏ",
+        project: "Khu dân cư ABC",
+        city: "TP.HCM",
+        district: "Quận 1",
+        ward: "Phường Bến Nghé",
+        street: "Đường Lê Lợi",
+        display_address: "123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM",
+        contact_name: "Nguyễn Văn A",
+        contact_phone: "0901234567",
+        contact_email: "nguyen.a@example.com",
+        interior: "đầy đủ",
+        rooms: 3,
+        toilets: 2,
+        floors: 2,
+        direction: "đông",
+        balcon_direction: "nam",
+        width: 5.5,
+        road_width: 8.0,
+        lat: 10.7769,
+        lng: 106.7009,
+        platform: "web",
+        new_city: "TP.HCM",
+        new_ward: "Phường Bến Nghé",
+        new_street: "Đường Nguyễn Huệ",
+        new_display_address: "123 Đường Nguyễn Huệ, Phường Bến Nghé, TP.HCM",
+      };
+
+      const $ = (id) => document.getElementById(id);
+      $("body").value = JSON.stringify(EXAMPLE, null, 2);
+
+      // Served by the API at /stream/demo -> derive same-origin URL (no CORS).
+      // Standalone (file://, preview, data:) -> localhost default, editable.
+      const servedByApi =
+        /^https?:$/.test(location.protocol) && /\/stream\/demo\/?$/.test(location.pathname);
+      $("endpoint").value = servedByApi
+        ? location.origin + location.pathname.replace(/\/demo\/?$/, "")
+        : "http://localhost:8000/api/v1/description/pair_address/stream";
+
+      const fmt = (ms) => (ms == null ? "—" : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`);
+
+      async function run() {
+        const titleOut = $("title-out");
+        const descOut = $("desc-out");
+        titleOut.textContent = "";
+        descOut.textContent = "";
+        descOut.classList.add("cursor");
+        $("ttft").textContent = "—";
+        $("total").textContent = "—";
+        $("chars").textContent = "0";
+        const btn = $("go");
+        btn.disabled = true;
+
+        let body;
+        try {
+          body = JSON.parse($("body").value);
+        } catch (e) {
+          descOut.classList.remove("cursor");
+          descOut.innerHTML = `<span class="err">Invalid JSON: ${e.message}</span>`;
+          btn.disabled = false;
+          return;
+        }
+
+        // Strip any trailing /gemini, then re-append based on the provider select.
+        let base = $("endpoint").value.trim().replace(/\/gemini$/, "");
+        if (!/^https?:\/\//.test(base)) {
+          descOut.classList.remove("cursor");
+          descOut.innerHTML = `<span class="err">Endpoint URL must start with http:// or https://</span>`;
+          btn.disabled = false;
+          return;
+        }
+        if ($("provider").value === "gemini") base += "/gemini";
+        const qs = new URLSearchParams({
+          user_id: $("user_id").value,
+          style: $("style").value,
+          address_version: $("address_version").value,
+        });
+        const url = `${base}?${qs.toString()}`;
+
+        const started = performance.now();
+        let firstAt = null;
+        let chars = 0;
+
+        const handle = (evt) => {
+          if (evt.type === "title" || evt.type === "description") {
+            if (firstAt == null) {
+              firstAt = performance.now();
+              $("ttft").textContent = fmt(firstAt - started);
+            }
+            const box = evt.type === "title" ? titleOut : descOut;
+            box.textContent += evt.delta || "";
+            chars += (evt.delta || "").length;
+            $("chars").textContent = String(chars);
+            descOut.scrollTop = descOut.scrollHeight;
+          } else if (evt.type === "error") {
+            descOut.innerHTML += `<span class="err">\n[error] ${evt.message}</span>`;
+          }
+        };
+
+        try {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+            body: JSON.stringify(body),
+          });
+          if (!resp.ok || !resp.body) {
+            const txt = await resp.text().catch(() => "");
+            throw new Error(`HTTP ${resp.status} ${txt}`);
+          }
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const frames = buf.split("\n\n");
+            buf = frames.pop(); // keep partial frame
+            for (const frame of frames) {
+              const line = frame.split("\n").find((l) => l.startsWith("data:"));
+              if (!line) continue;
+              try {
+                handle(JSON.parse(line.slice(5).trim()));
+              } catch (_) {}
+            }
+          }
+        } catch (e) {
+          descOut.innerHTML += `<span class="err">\n[client error] ${e.message}</span>`;
+        } finally {
+          $("total").textContent = fmt(performance.now() - started);
+          descOut.classList.remove("cursor");
+          btn.disabled = false;
+        }
+      }
+
+      $("go").addEventListener("click", run);
+    </script>
+  </body>
+</html>

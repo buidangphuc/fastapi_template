@@ -65,3 +65,8 @@ Sau đó:
 
 - Output từ Codex luôn ghi vào `/tmp/codex_*.json` (không commit vào repo).
 - Dọn dẹp ngay sau khi consume xong.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
